@@ -19,7 +19,7 @@ class UserLogin(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     id_token: Optional[str] = None
-    email: EmailStr
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     google_id: Optional[str] = None

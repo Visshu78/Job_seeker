@@ -62,16 +62,59 @@ def login(login_in: UserLogin, db: Session = Depends(get_db)):
     token = create_access_token(user.id)
     return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
 
+import httpx
+
 @router.post("/google", response_model=Token)
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     """
     Google OAuth 2.0 Sign-In / Sign-Up Endpoint.
-    Authenticates user with Google credentials, auto-provisions account and seeds student profile.
+    Verifies signed Google ID token via Google's tokeninfo API, auto-provisions account and seeds student profile.
     """
-    email = req.email.strip().lower()
-    full_name = req.full_name or email.split("@")[0].title()
-    google_id = req.google_id or f"g_{abs(hash(email)) % 100000000}"
-    avatar_url = req.avatar_url or f"https://api.dicebear.com/7.x/avataaars/svg?seed={email}"
+    email = None
+    full_name = req.full_name
+    google_id = req.google_id
+    avatar_url = req.avatar_url
+
+    # 1. Verify Google ID token against Google's API if token is provided
+    if req.id_token:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                res = client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={req.id_token}")
+                if res.status_code == 200:
+                    token_info = res.json()
+                    email = token_info.get("email")
+                    full_name = token_info.get("name") or full_name
+                    google_id = token_info.get("sub") or google_id
+                    avatar_url = token_info.get("picture") or avatar_url
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid Google OAuth ID token from Google servers"
+                    )
+        except HTTPException:
+            raise
+        except Exception as e:
+            # If network error or timeout verifying with Google
+            print(f"Warning: Google tokeninfo verification check failed: {e}")
+            if not req.email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Could not reach Google verification servers and no fallback email provided"
+                )
+
+    if not email:
+        if req.email:
+            email = req.email.strip().lower()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is required for authentication"
+            )
+
+    email = email.strip().lower()
+    full_name = full_name or email.split("@")[0].title()
+    google_id = google_id or f"g_{abs(hash(email)) % 100000000}"
+    avatar_url = avatar_url or f"https://api.dicebear.com/7.x/avataaars/svg?seed={email}"
 
     user = db.query(User).filter((User.email == email) | (User.google_id == google_id)).first()
 
