@@ -21,6 +21,10 @@ export async function fetchApi(endpoint, options = {}) {
       headers,
     });
 
+    if (res.status === 401) {
+      localStorage.removeItem('career_agent_token');
+    }
+
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(errorData.detail || `Request failed with status ${res.status}`);
@@ -36,6 +40,9 @@ export async function fetchApi(endpoint, options = {}) {
 export const api = {
   // Auth
   getMe: () => fetchApi('/auth/me'),
+  logout: () => {
+    localStorage.removeItem('career_agent_token');
+  },
   login: (email, password) => fetchApi('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password })

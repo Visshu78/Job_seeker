@@ -60,6 +60,12 @@ export function AppProvider({ children }) {
     setApplyingJob(null);
   };
 
+  const logout = async () => {
+    api.logout();
+    setUser(null);
+    await refreshUserData();
+  };
+
   return (
     <AppContext.Provider value={{
       activeTab,
@@ -74,6 +80,7 @@ export function AppProvider({ children }) {
       applyingJob,
       loading,
       refreshUserData,
+      logout,
       openMatchDetail,
       closeMatchDetail,
       openApplicationStudio,

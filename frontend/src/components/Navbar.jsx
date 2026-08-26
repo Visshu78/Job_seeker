@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  Sparkles, Bell, RefreshCw, ChevronDown, CheckCheck, GraduationCap
+  Sparkles, Bell, RefreshCw, ChevronDown, CheckCheck, GraduationCap, User, LogIn, LogOut
 } from 'lucide-react';
 import { api } from '../api';
 import { AuthModal } from './AuthModal';
@@ -9,11 +9,12 @@ import { AuthModal } from './AuthModal';
 export function Navbar() {
   const { 
     user, profile, unreadCount, notifications, refreshUserData, 
-    setActiveTab 
+    logout, setActiveTab 
   } = useApp();
   const [showNotifs, setShowNotifs] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleSync = async () => {
     try {
@@ -166,31 +167,73 @@ export function Navbar() {
             )}
           </div>
 
-          {/* User Pill */}
-          <div 
-            onClick={() => setActiveTab('profile')}
-            className="flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl bg-surface-card hover:bg-surface-hover border border-border cursor-pointer transition"
-          >
-            <img 
-              src={user?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'vishal'}`}
-              alt="Avatar"
-              className="w-8 h-8 rounded-xl object-cover bg-surface border border-border/80"
-            />
-            <div className="text-left hidden sm:block">
-              <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                <span>{profile?.full_name || user?.full_name || 'Vishal Sharma'}</span>
-                {profile?.cgpa && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">
-                    {profile.cgpa}
-                  </span>
-                )}
+          {/* User Pill & Account Menu */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl bg-surface-card hover:bg-surface-hover border border-border cursor-pointer transition"
+            >
+              <img 
+                src={user?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'vishal'}`}
+                alt="Avatar"
+                className="w-8 h-8 rounded-xl object-cover bg-surface border border-border/80"
+              />
+              <div className="text-left hidden sm:block">
+                <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                  <span>{profile?.full_name || user?.full_name || 'Vishal Sharma'}</span>
+                  {profile?.cgpa && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">
+                      {profile.cgpa}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-400 flex items-center gap-1 truncate max-w-[140px]">
+                  <GraduationCap className="w-3 h-3 text-brand-400 shrink-0" />
+                  <span className="truncate">{profile?.college_name || 'IIT Delhi'}</span>
+                </div>
               </div>
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 truncate max-w-[140px]">
-                <GraduationCap className="w-3 h-3 text-brand-400 shrink-0" />
-                <span className="truncate">{profile?.college_name || 'IIT Delhi'}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {/* User Dropdown */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl glass-panel p-3 shadow-2xl border border-border/80 z-50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-2 text-left">
+                <div className="p-2 rounded-xl bg-surface border border-border/60">
+                  <span className="text-[11px] text-slate-400 block">Signed in as</span>
+                  <span className="text-xs font-bold text-white truncate block">{user?.email || profile?.email || 'vishal.aiml@example.com'}</span>
+                  <span className="text-[10px] text-brand-400 font-medium">{user?.auth_provider === 'google' ? 'Google Authenticated' : 'Local Account'}</span>
+                </div>
+
+                <div className="space-y-1">
+                  <button
+                    onClick={() => { setShowUserMenu(false); setActiveTab('profile'); }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-surface-hover transition flex items-center gap-2 cursor-pointer text-left"
+                  >
+                    <User className="w-4 h-4 text-brand-400" />
+                    <span>Candidate Profile & Studio</span>
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); setShowAuthModal(true); }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-surface-hover transition flex items-center gap-2 cursor-pointer text-left"
+                  >
+                    <LogIn className="w-4 h-4 text-accent-cyan" />
+                    <span>Switch Account / Google OAuth</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      setShowUserMenu(false);
+                      await logout();
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold text-accent-rose hover:bg-accent-rose/10 transition flex items-center gap-2 cursor-pointer text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            )}
           </div>
         </div>
       </header>
