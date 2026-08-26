@@ -108,7 +108,7 @@ export function AuthModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      const gEmail = presetEmail || email || 'vishal.aiml@example.com';
+      const gEmail = presetEmail || email || 'vishal.student@gmail.com';
       const gName = presetName || fullName || 'Vishal Sharma';
       const gCollege = presetCollege || collegeName || 'IIT Delhi';
       const gCgpa = presetCgpa || cgpa || '8.8/10';
@@ -126,8 +126,9 @@ export function AuthModal({ isOpen, onClose }) {
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
+        setSuccessMsg(`Authenticated as ${res.user.full_name || gName} (${res.user.email})`);
         await refreshUserData();
-        onClose();
+        setTimeout(onClose, 600);
       }
     } catch (err) {
       console.error(err);

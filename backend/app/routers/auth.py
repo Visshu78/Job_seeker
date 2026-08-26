@@ -164,6 +164,13 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         db.add(prefs)
         db.commit()
     else:
+        # Link user account to Google auth provider
+        user.auth_provider = "google"
+        user.google_id = google_id
+        user.is_verified = True
+        if not user.avatar_url:
+            user.avatar_url = avatar_url
+
         # Update existing profile if newly provided academic credentials
         if req.college_name or req.cgpa or req.phone_number:
             if user.profile:
@@ -174,11 +181,9 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
                 if req.phone_number:
                     user.profile.phone_number = req.phone_number
                     user.profile.phone = req.phone_number
+                if req.phone_number and not user.phone_number:
                     user.phone_number = req.phone_number
-                db.commit()
-        if not user.avatar_url:
-            user.avatar_url = avatar_url
-            db.commit()
+        db.commit()
 
     token = create_access_token(user.id)
     return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
