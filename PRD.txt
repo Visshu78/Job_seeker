@@ -1,0 +1,1609 @@
+Product Requirements Document (PRD)
+AI Career Agent — Personalized Job Discovery & Application Platform
+
+Version: 1.0
+Status: Product Definition
+Product Type: AI-powered SaaS
+Primary Users: Students, fresh graduates, and early-career professionals
+Initial Market: India, with international jobs as a later expansion
+Core Principle: Find fewer, better opportunities and help the user apply intelligently.
+
+1. Executive Summary
+
+AI Career Agent is a personalized job and internship discovery platform that continuously searches multiple job sources and identifies opportunities that closely match a user's resume, skills, experience, preferred roles, location, and compensation requirements.
+
+Instead of presenting users with hundreds of generic job listings, the platform uses a combination of:
+
+structured filtering
+semantic search
+skill matching
+requirement classification
+resume-job similarity
+personalized ranking
+resume gap analysis
+
+to determine which opportunities are worth the user's attention.
+
+For each high-quality opportunity, the system explains:
+
+Why the candidate is a good match
+What requirements are missing
+Which missing requirements are mandatory vs preferred
+Which skills are transferable
+How the resume could potentially be improved
+Whether the system recommends applying
+
+The user can update their resume/profile if necessary and must explicitly confirm before an application is submitted.
+
+The platform is designed as a scalable SaaS, while the initial implementation prioritizes free/public APIs, open-source models, caching, and low-cost infrastructure.
+
+2. Vision
+Vision Statement
+
+Build an AI career agent that continuously finds the opportunities a candidate is most likely to succeed in, explains why, improves application readiness, and keeps the candidate in control of every application.
+
+The long-term goal is not to become another job board.
+
+The goal is to become the user's personal career agent.
+
+3. Problem
+3.1 Job discovery is inefficient
+
+Candidates search across multiple platforms:
+
+LinkedIn
+Indeed
+Naukri
+company career pages
+startup career pages
+ATS platforms
+internship portals
+
+The same job may appear multiple times.
+
+3.2 Too many irrelevant opportunities
+
+A candidate may see hundreds of jobs matching a keyword such as:
+
+"Machine Learning"
+
+but only a small percentage may actually match:
+
+their experience
+their skills
+their location
+their salary requirements
+their education
+their career goals
+3.3 Candidates struggle to understand job fit
+
+Most platforms don't adequately answer:
+
+"How well does my actual resume fit this job?"
+
+3.4 Candidates don't know what is missing
+
+A candidate may be rejected because a job requires:
+
+Kubernetes
+AWS
+TensorFlow
+SQL
+deployment experience
+
+but they may not realize this until after applying.
+
+3.5 Application preparation is repetitive
+
+For each job, candidates repeatedly:
+
+modify resumes
+write cover letters
+answer similar questions
+fill forms
+enter personal information
+track applications
+4. Product Solution
+
+The platform creates a continuous pipeline:
+
+User Profile
+     ↓
+Job Discovery
+     ↓
+Job Normalization
+     ↓
+Deduplication
+     ↓
+Hard Filtering
+     ↓
+AI Matching
+     ↓
+Ranking
+     ↓
+Resume Gap Analysis
+     ↓
+Opportunity Recommendation
+     ↓
+User Notification
+     ↓
+Resume Improvement (optional)
+     ↓
+Application Review
+     ↓
+User Confirmation
+     ↓
+Application Preparation
+     ↓
+Submission / User-assisted Submission
+     ↓
+Application Tracking
+5. Product Principles
+P1 — Relevance over volume
+
+The system should optimize for quality of recommendations, not number of jobs.
+
+P2 — Explainability
+
+Every recommendation should have an understandable explanation.
+
+P3 — Human control
+
+No application is submitted without explicit user approval.
+
+P4 — Truthfulness
+
+The AI must never fabricate candidate experience, skills, projects, certifications, or achievements.
+
+P5 — Cost efficiency
+
+Use free/public APIs and open-source models wherever practical.
+
+P6 — Privacy
+
+Resume and application data must be treated as sensitive information.
+
+P7 — Source independence
+
+The system must not depend on a single job provider.
+
+6. Target Users
+Persona A — Student
+
+Example
+
+B.Tech student looking for:
+
+ML internships
+Computer Vision internships
+AI Engineer internships
+Software engineering internships
+
+Needs:
+
+₹20k+ stipend
+India
+Remote/Bangalore/Hyderabad
+0–1 years experience
+Persona B — Fresh Graduate
+
+Looking for:
+
+Full-time AI/ML roles
+Software engineering roles
+Data science roles
+
+Needs:
+
+Entry-level opportunities
+Salary threshold
+Specific locations
+Persona C — Early Career Professional
+
+Looking for:
+
+job switches
+better salary
+remote roles
+specialized technical roles
+7. Core User Journey
+                  ┌──────────────┐
+                  │   Sign Up    │
+                  └──────┬───────┘
+                         ▼
+                  Upload Resume
+                         │
+                         ▼
+                Resume Intelligence
+                         │
+                         ▼
+                 Candidate Profile
+                         │
+                         ▼
+                  User Preferences
+                         │
+                         ▼
+                  Job Discovery
+                         │
+                         ▼
+                   Job Filtering
+                         │
+                         ▼
+                  AI Job Matching
+                         │
+                         ▼
+                    Ranking
+                         │
+                         ▼
+                  Gap Analysis
+                         │
+                         ▼
+                   Notification
+                         │
+                         ▼
+                  User Review
+                    /       \
+                   /         \
+                  ▼           ▼
+          Update Resume      Skip
+                  │
+                  ▼
+             Re-analysis
+                  │
+                  ▼
+            Confirm Apply
+                  │
+                  ▼
+          Application Agent
+                  │
+                  ▼
+         Application Tracking
+8. Functional Requirements
+FR-001 — User Authentication
+
+The system shall allow users to:
+
+create an account
+authenticate
+log out
+reset credentials
+manage account settings
+delete account
+Future
+Google authentication
+GitHub authentication
+MFA
+Passkeys
+9. Resume Management
+FR-002 — Resume Upload
+
+Supported formats:
+
+PDF
+DOCX
+
+The platform should retain the original document while creating a structured representation.
+
+FR-003 — Resume Parsing
+
+The parser should extract:
+
+Personal information
+name
+email
+phone
+location
+Education
+degree
+field
+institution
+graduation year
+GPA/CGPA
+Experience
+organization
+role
+duration
+responsibilities
+Projects
+title
+description
+technologies
+achievements
+Skills
+programming languages
+frameworks
+libraries
+databases
+cloud
+tools
+Certifications
+name
+organization
+date
+10. Candidate Profile
+
+The parsed resume becomes a structured candidate profile.
+
+Example:
+
+{
+  "roles": [
+    "Machine Learning Engineer",
+    "Computer Vision Engineer"
+  ],
+  "experience_level": "entry_level",
+  "skills": [
+    "Python",
+    "PyTorch",
+    "OpenCV",
+    "Docker"
+  ],
+  "education": {
+    "degree": "B.Tech",
+    "field": "Computer Science"
+  },
+  "locations": [
+    "Bangalore",
+    "Hyderabad",
+    "Remote"
+  ]
+}
+
+The user must be able to edit this information.
+
+11. Job Preferences
+
+Users configure:
+
+Roles
+
+Examples:
+
+AI Engineer
+ML Engineer
+Computer Vision Engineer
+NLP Engineer
+Software Engineer
+Employment type
+Internship
+Full-time
+Part-time
+Contract
+Experience
+Fresher
+0–1 years
+1–2 years
+2–3 years
+Location
+specific cities
+countries
+remote
+hybrid
+on-site
+Compensation
+minimum stipend
+minimum salary
+currency
+Additional preferences
+preferred companies
+excluded companies
+industries
+technologies
+company size
+12. Job Discovery Architecture
+
+The system shall use a multi-source ingestion architecture.
+
+                  Source Manager
+                       │
+       ┌───────────────┼────────────────┐
+       ▼               ▼                ▼
+   Public APIs      Public ATS       Other Sources
+       │               │                │
+       ▼               ▼                ▼
+     Adzuna        Greenhouse         Future
+     RemoteOK      Lever              Providers
+       │               │
+       └───────────────┼────────────────┘
+                       ▼
+                Job Normalization
+                       ▼
+                Deduplication
+                       ▼
+                 Job Database
+13. Initial Job Sources
+13.1 Adzuna
+
+Adzuna provides a REST API for searching job advertisements by country, keyword and location and exposes job-search and salary-related endpoints. It requires an app_id and app_key.
+
+Role: Broad job discovery.
+
+13.2 Greenhouse
+
+Greenhouse's public Job Board API exposes published jobs through unauthenticated GET endpoints. It can provide job descriptions, departments, offices and application-related information.
+
+Role: Direct company-level job discovery.
+
+13.3 Lever
+
+Lever provides a public postings API for published jobs, including paginated job listings and individual postings. It also supports programmatic applications for appropriate integrations, although the initial product should not depend on that capability.
+
+Role: Direct company-level job discovery.
+
+13.4 Additional sources
+
+Future sources can be added through the same adapter interface.
+
+class JobSource:
+    async def fetch_jobs(self):
+        ...
+
+Potential future adapters:
+
+RemoteOK
+USAJobs
+Additional public APIs
+Additional ATS platforms
+Partner feeds
+14. Source Abstraction Layer
+
+Every provider must implement a common interface.
+
+JobSource
+│
+├── AdzunaSource
+├── GreenhouseSource
+├── LeverSource
+├── RemoteOKSource
+└── FutureSource
+
+Each adapter returns:
+
+NormalizedJob
+
+This ensures that adding or removing a source doesn't affect:
+
+matching
+ranking
+frontend
+notifications
+application tracking
+15. Job Normalization
+
+Every source is converted into:
+
+Job
+├── id
+├── source
+├── external_id
+├── company
+├── title
+├── description
+├── location
+├── remote_type
+├── salary_min
+├── salary_max
+├── currency
+├── employment_type
+├── experience
+├── application_url
+├── posted_at
+├── updated_at
+└── deadline
+16. Job Deduplication
+
+Duplicate detection should use:
+
+source ID
+application URL
+company + title + location
+description similarity
+
+Example:
+
+Linked Source A
+"ML Engineer Intern"
+
+Greenhouse
+"Machine Learning Engineer Intern"
+
+Company Careers
+"ML Engineering Intern"
+
+If descriptions and metadata indicate the same position, the system should consolidate them.
+
+17. Job Processing Pipeline
+Raw Job
+  ↓
+Validation
+  ↓
+Normalization
+  ↓
+Deduplication
+  ↓
+Metadata Extraction
+  ↓
+Requirement Extraction
+  ↓
+Embedding
+  ↓
+Store
+18. Job Requirement Extraction
+
+The system should extract:
+
+Role
+Experience
+Education
+Location
+Salary
+Required Skills
+Preferred Skills
+Nice-to-have Skills
+Responsibilities
+Employment Type
+
+Example:
+
+{
+  "role": "ML Engineer Intern",
+  "required": [
+    "Python",
+    "Machine Learning",
+    "PyTorch"
+  ],
+  "preferred": [
+    "Docker",
+    "AWS"
+  ],
+  "nice_to_have": [
+    "Kubernetes"
+  ]
+}
+19. Hard Filtering
+
+Before expensive semantic/LLM processing:
+
+Location
+Salary
+Employment type
+Experience
+Role
+
+are checked.
+
+Example:
+
+User minimum stipend: ₹25,000
+
+Job stipend: ₹15,000
+
+→ Filter out
+
+This reduces computational cost.
+
+20. Matching Engine
+
+The matching engine combines:
+
+20.1 Semantic similarity
+
+Resume ↔ Job Description.
+
+20.2 Skill matching
+
+Required skills ↔ Candidate skills.
+
+20.3 Experience compatibility
+
+Candidate experience ↔ Job requirements.
+
+20.4 Education compatibility
+20.5 Role alignment
+20.6 Preference alignment
+20.7 Requirement importance
+
+Required skills have higher importance than nice-to-have skills.
+
+21. Initial Matching Formula
+Match Score =
+
+30% Skill Match
+25% Semantic Similarity
+15% Experience Fit
+15% Preference Fit
+10% Role Alignment
+ 5% Education / Other
+
+The weights must be configurable.
+
+Later, this can evolve into a learning-to-rank system.
+
+22. Requirement Classification
+
+Each job requirement should be classified as:
+
+REQUIRED
+PREFERRED
+NICE_TO_HAVE
+TRANSFERABLE
+
+Example:
+
+TensorFlow
+Candidate: PyTorch
+
+→ TRANSFERABLE
+
+rather than simply:
+
+TensorFlow → Missing
+23. Resume Gap Analysis
+
+For every high-ranked job:
+
+Matched
+Python ✓
+PyTorch ✓
+OpenCV ✓
+Deep Learning ✓
+Missing
+Kubernetes
+AWS
+Partial
+Cloud deployment
+Transferable
+TensorFlow
+→ Strong PyTorch experience
+24. Gap Severity
+
+Not every missing skill should affect the score equally.
+
+Example:
+
+Mandatory requirement
+→ High impact
+
+Preferred requirement
+→ Medium impact
+
+Nice-to-have
+→ Low impact
+
+This prevents the system from unfairly rejecting good candidates.
+
+25. Resume Improvement
+
+The system can identify evidence already present in the resume but poorly represented.
+
+Example:
+
+Your project demonstrates Docker usage, but the resume does not explicitly mention containerization.
+
+The platform may suggest:
+
+Add Docker/containerization to the project description.
+
+The user must approve modifications.
+
+The system must never invent experience.
+
+26. Opportunity Score
+
+Each opportunity should expose:
+
+Overall Match: 91/100
+
+Skill Match:       95%
+Experience Fit:    100%
+Role Fit:           94%
+Preference Fit:     90%
+Semantic Fit:       88%
+27. Recommendation
+
+The platform should classify opportunities:
+
+HIGH PRIORITY
+
+Strong fit.
+
+CONSIDER
+
+Good fit with manageable gaps.
+
+LOW PRIORITY
+
+Major mismatch.
+
+28. Opportunity Notification
+
+Notifications may be delivered through:
+
+V1
+Email
+In-app notification
+Future
+Push notifications
+Telegram
+WhatsApp, subject to appropriate APIs/permissions
+
+Example:
+
+91% Match — ML Engineer Intern
+
+₹30,000/month · Bangalore
+
+Strong matches
+
+Python ✓
+PyTorch ✓
+Computer Vision ✓
+Deep Learning ✓
+
+Potential gaps
+
+Kubernetes
+AWS
+
+Recommendation: High Priority
+
+[Review Opportunity]
+
+29. Opportunity Detail Page
+
+The page should contain:
+
+Job
+title
+company
+location
+salary
+experience
+description
+deadline
+source
+Candidate match
+score
+skill analysis
+experience analysis
+preference analysis
+Gap analysis
+missing
+partial
+transferable
+Resume suggestions
+improvements
+relevant projects
+potential keywords
+Actions
+[Save]
+[Skip]
+[Update Resume]
+[Review Application]
+30. Human-in-the-Loop Application Workflow
+
+This is a core product requirement.
+
+The system must never silently submit an application.
+
+Opportunity
+    ↓
+Application Preparation
+    ↓
+User Review
+    ↓
+Explicit Confirmation
+    ↓
+Application Submission
+31. Application Review
+
+Before submission:
+
+Application Review
+
+Company:
+XYZ Labs
+
+Role:
+ML Engineer Intern
+
+Resume:
+Vishal_AI_ML.pdf
+
+Cover Letter:
+Generated
+
+Questions:
+3/3 prepared
+
+──────────────────
+
+[ ] I reviewed this application
+[ ] I authorize submission
+
+        [CONFIRM & APPLY]
+32. Application Agent
+
+The application agent can:
+
+select appropriate resume
+generate cover letter
+prepare answers
+populate supported fields
+prepare application data
+direct user to final submission where required
+
+Official APIs should be preferred where legitimately available.
+
+The product should not depend on bypassing anti-bot systems or violating job-board restrictions.
+
+33. Application Tracking
+
+Statuses:
+
+DISCOVERED
+↓
+SAVED
+↓
+APPROVED
+↓
+PREPARING
+↓
+SUBMITTED
+↓
+UNDER_REVIEW
+↓
+INTERVIEW
+↓
+OFFER / REJECTED
+34. Dashboard
+
+The dashboard should show:
+
+Discovery
+Jobs discovered today: 127
+High-fit jobs: 14
+Recommended: 7
+Applications
+Applications: 32
+Responses: 7
+Interviews: 3
+Offers: 1
+Career insights
+Best role:
+Computer Vision Engineer
+
+Best location:
+Bangalore
+
+Average match:
+86%
+
+Best-performing skill cluster:
+Computer Vision + PyTorch
+35. Personalization Engine
+
+The platform should learn from:
+
+Viewed
+Saved
+Skipped
+Applied
+Rejected
+Interview
+Offer
+
+Example:
+
+If a user repeatedly receives interviews for:
+
+Computer Vision Engineer
+
+but rarely receives responses for:
+
+Generic Software Engineer
+
+the system can increase the ranking weight of CV roles.
+
+36. AI Architecture
+                  RESUME
+                     │
+                     ▼
+              Resume Parser
+                     │
+                     ▼
+            Candidate Profile
+                     │
+                     ▼
+                 Embedding
+                     │
+                     │
+                     ▼
+JOB SOURCES → Job Processing → Job Profile
+                                  │
+                                  ▼
+                              Embedding
+                                  │
+                     ┌────────────┴────────────┐
+                     ▼                         ▼
+              Hard Filtering             Vector Search
+                     │                         │
+                     └────────────┬────────────┘
+                                  ▼
+                              Reranking
+                                  │
+                                  ▼
+                         Gap / Requirement
+                            Analysis
+                                  │
+                                  ▼
+                           Recommendation
+                                  │
+                                  ▼
+                             Notification
+37. Cost Optimization Architecture
+
+This is critical for the initial SaaS.
+
+Don't do:
+100 users
+×
+same job
+×
+LLM call
+
+Instead:
+
+                 JOB
+                  │
+          Process once globally
+                  │
+        ┌─────────┴─────────┐
+        ▼                   ▼
+ Job Profile           Job Embedding
+        │                   │
+        └─────────┬─────────┘
+                  ▼
+          Candidate Matching
+
+A job's expensive processing should be reused across users.
+
+38. Technology Stack
+Layer	Technology
+Frontend	Next.js / React
+Backend	FastAPI
+Database	PostgreSQL
+Vector Search	pgvector
+Cache	Redis
+Queue	Celery / RQ
+ML	PyTorch
+NLP	Hugging Face Transformers
+Embeddings	Open-source model
+LLM	Local/open-source initially
+Storage	S3-compatible storage
+Containerization	Docker
+Reverse Proxy	Nginx / Cloudflare
+CI/CD	GitHub Actions
+Monitoring	Prometheus/Grafana later
+39. High-Level Infrastructure
+                         Internet
+                            │
+                            ▼
+                       Cloudflare
+                            │
+                            ▼
+                     Next.js Frontend
+                            │
+                            ▼
+                       FastAPI API
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+           Auth           Users         Jobs
+              │             │             │
+              └─────────────┼─────────────┘
+                            ▼
+                       PostgreSQL
+                         + pgvector
+                            │
+                         Redis
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+        Job Workers     AI Workers    Notification
+                                           Workers
+40. Security Requirements
+Authentication
+Password hashing
+Secure sessions/tokens
+Email verification
+Rate limiting
+Data security
+HTTPS
+Encryption at rest
+Secure object storage
+Sensitive-field protection
+Authorization
+
+Users must only access their own:
+
+resumes
+profile
+applications
+preferences
+notifications
+Infrastructure
+Secrets stored outside source code
+Environment-specific configuration
+Restricted database access
+API rate limiting
+Secure file validation
+Auditing
+
+Record:
+
+login events
+resume uploads
+profile modifications
+application approvals
+application submissions
+account changes
+41. Multi-Tenant Architecture
+
+Every user-owned resource must be associated with a user/tenant.
+
+User
+│
+├── Candidate Profiles
+├── Resumes
+├── Preferences
+├── Saved Jobs
+├── Job Matches
+├── Applications
+└── Notifications
+
+Database queries must enforce user ownership.
+
+42. Job Ingestion Scheduling
+
+The system should use background workers.
+
+Example:
+
+Every 30–60 minutes
+        │
+        ▼
+Source Scheduler
+        │
+        ├── Adzuna
+        ├── Greenhouse
+        ├── Lever
+        └── Other sources
+        │
+        ▼
+Normalize
+        │
+        ▼
+Deduplicate
+        │
+        ▼
+Process
+        │
+        ▼
+Store
+
+The exact frequency should depend on source limits and freshness requirements.
+
+43. Job Source Registry
+
+Maintain:
+
+job_sources
+
+id
+name
+type
+base_url
+credentials_reference
+enabled
+rate_limit
+last_success
+last_failure
+
+And:
+
+company_sources
+
+id
+company
+ats
+identifier
+active
+last_checked
+
+This makes the ingestion system operationally manageable.
+
+44. Database Model
+
+Core entities:
+
+users
+resumes
+candidate_profiles
+preferences
+
+job_sources
+companies
+jobs
+job_requirements
+job_embeddings
+
+job_matches
+notifications
+
+applications
+application_events
+
+subscriptions
+usage_records
+45. API Design
+
+Example:
+
+POST   /auth/register
+POST   /auth/login
+
+POST   /resumes
+GET    /resumes
+DELETE /resumes/{id}
+
+GET    /profile
+PUT    /profile
+
+GET    /preferences
+PUT    /preferences
+
+GET    /jobs
+GET    /jobs/{id}
+
+GET    /matches
+GET    /matches/{id}
+
+POST   /matches/{id}/save
+POST   /matches/{id}/skip
+
+POST   /applications/prepare
+POST   /applications/{id}/confirm
+GET    /applications
+
+GET    /notifications
+46. MVP Scope
+Must Have
+Account
+Authentication
+User profile
+Resume
+PDF/DOCX upload
+Parsing
+Candidate profile
+Resume management
+Preferences
+Role
+salary/stipend
+location
+experience
+employment type
+Jobs
+Multiple job sources
+Normalization
+Deduplication
+Filtering
+Search
+AI
+Resume embeddings
+Job embeddings
+Skill matching
+Match score
+Requirement classification
+Gap analysis
+UX
+Dashboard
+Opportunity cards
+Match explanations
+Save
+Skip
+Email notifications
+Application
+Application review
+Explicit confirmation
+Application tracking
+47. V1.1
+
+After MVP validation:
+
+Resume improvement
+Cover letter generation
+Multiple resumes
+Advanced ranking
+Company watchlists
+Better notifications
+More job sources
+48. V2
+Learning-to-rank
+Application analytics
+ATS integrations
+More sophisticated application assistance
+Personalized career insights
+Subscription system
+49. V3
+
+Long-term:
+
+AI Career Agent
+       │
+       ├── Job Discovery
+       ├── Resume Agent
+       ├── Application Agent
+       ├── Interview Agent
+       ├── Career Analytics
+       └── Career Planning
+50. Non-Goals for MVP
+
+We deliberately will not initially build:
+
+Mobile application
+Kubernetes
+Custom LLM training
+20+ job providers
+Universal browser automation
+Fully autonomous applications
+Enterprise billing
+Complex career coaching
+Social networking
+51. Monetization
+Free
+1 Resume
+Limited daily matches
+Basic matching
+Basic notifications
+Limited applications
+Pro
+Multiple resumes
+Higher job limits
+Advanced matching
+Resume gap analysis
+AI resume suggestions
+Cover letters
+Application analytics
+Agent
+
+Future:
+
+Continuous monitoring
+Advanced personalization
+Application preparation
+ATS integrations
+Higher application volume
+52. Success Metrics
+Discovery
+Jobs discovered/day
+Unique jobs
+Duplicate rate
+Freshness
+Matching
+Average match score
+Save rate
+Skip rate
+Recommendation acceptance rate
+Applications
+Applications approved
+Applications submitted
+Response rate
+Interview rate
+Offer rate
+User engagement
+DAU
+WAU
+Jobs viewed/user
+Applications/user
+North-star metric
+
+Interview rate per 100 recommended applications
+
+The product should optimize for career outcomes, not raw job volume.
+
+53. Quality Requirements
+
+The system should target:
+
+Job freshness
+
+New jobs should enter the system within the source's available update window.
+
+Duplicate rate
+
+Target:
+
+<5% duplicate opportunities presented to users
+
+Matching
+
+The system should continuously evaluate recommendations using:
+
+saves
+skips
+applications
+interviews
+offers
+Notification quality
+
+Avoid notifying users about low-value opportunities.
+
+54. Privacy Requirements
+
+Users must be able to:
+
+download their data
+delete resumes
+delete applications
+delete account
+revoke integrations
+
+The platform should clearly communicate:
+
+what data is stored
+why it is stored
+where it is used
+how long it is retained
+55. Application Safety
+
+The application system must have:
+
+Explicit confirmation
+
+No silent submission.
+
+Application preview
+
+User sees:
+
+resume
+cover letter
+answers
+destination
+application data
+
+before submission.
+
+Audit trail
+
+Record:
+
+User approved
+↓
+Application prepared
+↓
+Application submitted
+↓
+Timestamp
+↓
+Source
+56. Key Product Differentiator
+
+The platform is not another job aggregator.
+
+The differentiation is:
+
+Traditional Job Board
+
+Jobs
+ ↓
+Search
+ ↓
+Apply
+
+
+AI Career Agent
+
+Resume
+ ↓
+Preferences
+ ↓
+Jobs
+ ↓
+AI Matching
+ ↓
+"Why you?"
+ ↓
+"What are you missing?"
+ ↓
+"Should you apply?"
+ ↓
+"How can we improve your application?"
+ ↓
+User approval
+ ↓
+Apply
+ ↓
+Track outcome
+57. Example End-to-End Experience
+
+A user uploads:
+
+AI/ML Resume
+
+Preferences:
+
+Roles:
+ML Engineer
+Computer Vision Engineer
+AI Engineer
+
+Location:
+Bangalore
+Hyderabad
+Remote
+
+Minimum stipend:
+₹25,000
+
+Experience:
+0–1 years
+
+The system discovers:
+
+ML Engineer Intern — XYZ Labs
+
+Salary: ₹30,000
+Location: Bangalore
+Experience: 0–1 years
+
+Matching:
+
+Skill Match:       95
+Semantic Match:    89
+Experience:       100
+Location:         100
+Role:              95
+
+Overall:           93/100
+
+Gap:
+
+Kubernetes — Preferred
+AWS — Preferred
+
+Notification:
+
+93% Match — Strongly Recommended
+
+The user opens it.
+
+The system says:
+
+Your resume is strong for this position. Kubernetes and AWS are missing, but both are preferred rather than mandatory.
+
+User chooses:
+
+Update Resume
+
+The system identifies existing Docker/cloud-related experience and suggests an improvement.
+
+User approves the change.
+
+Score becomes:
+
+93 → 95
+
+User reviews application.
+
+Then:
+
+CONFIRM & APPLY
+
+Application is prepared/submitted through the supported workflow.
+
+Status becomes:
+
+Submitted
+
+Later:
+
+Interview
+
+The platform records the outcome.
+
+That outcome eventually improves future recommendations.
+
+58. Development Strategy
+
+We should not start by building the entire SaaS.
+
+The development sequence should be:
+
+                    PHASE 1
+              Job Intelligence
+                    │
+                    ▼
+              PHASE 2
+          Resume Intelligence
+                    │
+                    ▼
+              PHASE 3
+           Matching Engine
+                    │
+                    ▼
+              PHASE 4
+          User Dashboard
+                    │
+                    ▼
+              PHASE 5
+        Notifications + Review
+                    │
+                    ▼
+              PHASE 6
+         Application Workflow
+                    │
+                    ▼
+              PHASE 7
+       Production + Security
+                    │
+                    ▼
+              PHASE 8
+          Beta / Real Users
+59. MVP Acceptance Criteria
+
+The MVP is considered successful when a test user can:
+
+ Create an account
+ Upload a resume
+ Review the extracted profile
+ Configure job preferences
+ Discover jobs from multiple sources
+ Receive normalized job listings
+ See duplicate jobs consolidated
+ Receive personalized match scores
+ See matched and missing skills
+ Understand why a job was recommended
+ Receive notifications for high-fit jobs
+ Save or skip opportunities
+ Review an application
+ Explicitly approve an application
+ Track application status
+60. Final Product Definition
+Working product statement
+
+AI Career Agent is a personalized career automation platform that continuously discovers jobs and internships from multiple sources, evaluates each opportunity against a candidate's resume and preferences, explains the candidate's strengths and gaps, helps optimize the application, and requires explicit user approval before applying.
+
+The product loop
+          ┌──────────────────────────────┐
+          │                              │
+          ▼                              │
+     FIND OPPORTUNITIES                  │
+          │                              │
+          ▼                              │
+     UNDERSTAND FIT                     │
+          │                              │
+          ▼                              │
+     IDENTIFY GAPS                      │
+          │                              │
+          ▼                              │
+     IMPROVE APPLICATION                │
+          │                              │
+          ▼                              │
+     USER CONFIRMS                      │
+          │                              │
+          ▼                              │
+        APPLY                            │
+          │                              │
+          ▼                              │
+     TRACK OUTCOME                      │
+          │                              │
+          ▼                              │
+     LEARN FROM RESULT ─────────────────┘
+
+That loop is the actual moat.
+
+The individual components—job APIs, embeddings, LLMs, resume parsing—can all be replicated. The long-term advantage comes from building a candidate-specific feedback loop where the system learns which opportunities actually turn into interviews and offers.
+
+And for V1, I would keep the stack deliberately lean: Next.js + FastAPI + PostgreSQL/pgvector + Redis + Docker + open-source embeddings + a small set of public job sources (starting with Adzuna, Greenhouse, and Lever). Greenhouse's public GET endpoints don't require authentication, while Adzuna requires developer credentials and Lever exposes published postings through its postings API.

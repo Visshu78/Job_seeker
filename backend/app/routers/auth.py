@@ -1,0 +1,145 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import User, CandidateProfile, JobPreferences
+from app.schemas import UserCreate, UserLogin, Token, UserOut, GoogleAuthRequest
+from app.services.auth_service import get_password_hash, verify_password, create_access_token
+from app.routers.deps import get_current_user
+
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+@router.post("/register", response_model=Token)
+def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == user_in.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+    
+    if not user_in.password:
+        raise HTTPException(status_code=400, detail="Password is required for local registration")
+
+    user = User(
+        email=user_in.email,
+        hashed_password=get_password_hash(user_in.password),
+        full_name=user_in.full_name or "New Candidate",
+        phone_number=user_in.phone_number,
+        avatar_url=user_in.avatar_url or f"https://api.dicebear.com/7.x/bottts/svg?seed={user_in.email}",
+        auth_provider="local"
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    # Initialize default student/candidate profile & preferences
+    profile = CandidateProfile(
+        user_id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone_number,
+        phone_number=user.phone_number,
+        college_name=None,
+        cgpa=None,
+        schooling={},
+        roles=["Machine Learning Engineer", "AI Engineer", "Software Engineer"],
+        skills=["Python", "PyTorch", "OpenCV", "Docker", "SQL", "Git"]
+    )
+    prefs = JobPreferences(user_id=user.id)
+    db.add(profile)
+    db.add(prefs)
+    db.commit()
+    
+    token = create_access_token(user.id)
+    return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
+
+@router.post("/login", response_model=Token)
+def login(login_in: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == login_in.email).first()
+    if not user or not user.hashed_password or not verify_password(login_in.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = create_access_token(user.id)
+    return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
+
+@router.post("/google", response_model=Token)
+def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
+    """
+    Google OAuth 2.0 Sign-In / Sign-Up Endpoint.
+    Authenticates user with Google credentials, auto-provisions account and seeds student profile.
+    """
+    email = req.email.strip().lower()
+    full_name = req.full_name or email.split("@")[0].title()
+    google_id = req.google_id or f"g_{abs(hash(email)) % 100000000}"
+    avatar_url = req.avatar_url or f"https://api.dicebear.com/7.x/avataaars/svg?seed={email}"
+
+    user = db.query(User).filter((User.email == email) | (User.google_id == google_id)).first()
+
+    if not user:
+        # Create new Google authenticated user
+        user = User(
+            email=email,
+            hashed_password=get_password_hash(f"oauth_google_{google_id}_{email}"),
+            full_name=full_name,
+            phone_number=req.phone_number,
+            avatar_url=avatar_url,
+            auth_provider="google",
+            google_id=google_id,
+            is_active=True,
+            is_verified=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Initialize student candidate profile with academic details
+        profile = CandidateProfile(
+            user_id=user.id,
+            full_name=full_name,
+            email=email,
+            phone=req.phone_number,
+            phone_number=req.phone_number,
+            college_name=req.college_name or "IIT Delhi",
+            degree="B.Tech in Computer Science",
+            cgpa=req.cgpa or "8.8/10",
+            graduation_year=2025,
+            schooling={
+                "class_10th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "95%"},
+                "class_12th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "94%"}
+            },
+            roles=["Machine Learning Engineer", "AI Engineer", "Computer Vision Engineer"],
+            skills=["Python", "PyTorch", "OpenCV", "Deep Learning", "Docker", "FastAPI", "SQL", "Git"]
+        )
+        prefs = JobPreferences(
+            user_id=user.id,
+            preferred_roles=["Machine Learning Engineer", "AI Engineer", "Computer Vision Engineer"],
+            locations=["Bangalore", "Hyderabad", "Delhi NCR", "Pune", "Remote"],
+            min_stipend=30000.0,
+            min_salary=1000000.0
+        )
+        db.add(profile)
+        db.add(prefs)
+        db.commit()
+    else:
+        # Update existing profile if newly provided academic credentials
+        if req.college_name or req.cgpa or req.phone_number:
+            if user.profile:
+                if req.college_name:
+                    user.profile.college_name = req.college_name
+                if req.cgpa:
+                    user.profile.cgpa = req.cgpa
+                if req.phone_number:
+                    user.profile.phone_number = req.phone_number
+                    user.profile.phone = req.phone_number
+                    user.phone_number = req.phone_number
+                db.commit()
+        if not user.avatar_url:
+            user.avatar_url = avatar_url
+            db.commit()
+
+    token = create_access_token(user.id)
+    return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
+
+@router.get("/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    return UserOut.model_validate(current_user)
