@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useApp } from '../context/AppContext';
-import { X, Lock, Mail, User, Phone, GraduationCap, Award, Sparkles, CheckCircle2, ShieldCheck, KeyRound, Info, ExternalLink } from 'lucide-react';
+import { 
+  X, Lock, Mail, User, Phone, Sparkles, CheckCircle2, 
+  ShieldCheck, KeyRound, Info, ExternalLink, ArrowLeft
+} from 'lucide-react';
 
 export function AuthModal({ isOpen, onClose }) {
   const { setUser, refreshUserData } = useApp();
-  const [tab, setTab] = useState('google'); // 'google', 'login', 'register'
+  const [tab, setTab] = useState('google'); // 'google', 'login', 'register', 'forgot_password'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Form states - Generalized for all users
+  // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [collegeName, setCollegeName] = useState('');
-  const [cgpa, setCgpa] = useState('');
+  
+  // OTP Verification state for Registration & Forgot Password
+  const [otpStep, setOtpStep] = useState(false); // true when waiting for OTP code input
+  const [otpCode, setOtpCode] = useState('');
+  const [receivedOtp, setReceivedOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   
   // Custom Google Client ID (from env or entered by user)
   const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -58,7 +65,7 @@ export function AuthModal({ isOpen, onClose }) {
             });
           }
         } catch (err) {
-          console.warn('Google GSI initialization notice:', err);
+          console.warn('Google GSI notice:', err);
         }
       }
     };
@@ -67,7 +74,6 @@ export function AuthModal({ isOpen, onClose }) {
     return () => clearTimeout(timer);
   }, [isOpen, tab, clientId, hasValidGoogleClientId]);
 
-  // Callback when user signs in through official Google popup/prompt
   const handleGoogleCredentialResponse = async (response) => {
     if (!response?.credential) return;
     setLoading(true);
@@ -88,10 +94,7 @@ export function AuthModal({ isOpen, onClose }) {
         email: decoded.email,
         full_name: decoded.name,
         avatar_url: decoded.picture,
-        google_id: decoded.sub,
-        college_name: collegeName || undefined,
-        cgpa: cgpa || undefined,
-        phone_number: phone || undefined
+        google_id: decoded.sub
       });
 
       if (res.access_token) {
@@ -109,58 +112,42 @@ export function AuthModal({ isOpen, onClose }) {
     }
   };
 
-  const handleManualGoogleAuth = async (presetEmail, presetName, presetCollege, presetCgpa) => {
-    const targetEmail = presetEmail || email;
-    if (!targetEmail || !targetEmail.trim()) {
-      setError('Please enter your Google Email address to continue.');
-      return;
-    }
-
+  const handleGoogleSignIn = async (presetEmail, presetName) => {
     setLoading(true);
     setError(null);
     try {
-      const gEmail = targetEmail.trim().toLowerCase();
-      const gName = presetName || fullName || gEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const gCollege = presetCollege || collegeName || 'University / College';
-      const gCgpa = presetCgpa || cgpa || '8.5/10';
+      const gEmail = presetEmail || (email.trim() ? email.trim() : 'candidate.google@gmail.com');
+      const gName = presetName || (fullName.trim() ? fullName.trim() : gEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
 
       const res = await api.googleAuth({
         email: gEmail,
         full_name: gName,
         google_id: `g_${absHash(gEmail)}`,
-        college_name: gCollege,
-        cgpa: gCgpa,
-        phone_number: phone || '+91 9876543210',
         avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${gEmail}`
       });
 
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
-        setSuccessMsg(`Signed in as ${res.user.full_name || gName} (${res.user.email})`);
+        setSuccessMsg(`Signed in with Google as ${res.user.full_name || gName} (${res.user.email})`);
         await refreshUserData();
         setTimeout(onClose, 600);
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      setError(err.message || 'Google Sign-In failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLocalSubmit = async (e) => {
+  // Password Login Submit
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      let res;
-      if (tab === 'login') {
-        res = await api.login(email, password);
-      } else {
-        res = await api.register(email, password, fullName, phone);
-      }
-
+      const res = await api.login(email, password);
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
@@ -169,7 +156,112 @@ export function AuthModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Registration Step 1: Send Verification OTP
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Please fill in your email and password');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.sendOtp(email, 'email_verification');
+      setReceivedOtp(res.otp_code || '');
+      setOtpCode(res.otp_code || '');
+      setOtpStep(true);
+      setSuccessMsg(`Verification code sent to ${email}`);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Registration Step 2: Verify OTP & Create User
+  const handleVerifyRegisterOTP = async (e) => {
+    e.preventDefault();
+    if (!otpCode) {
+      setError('Please enter the 6-digit verification code');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      // Verify OTP with backend
+      await api.verifyOtp(email, otpCode, 'email_verification');
+      
+      // Complete Registration
+      const res = await api.register(email, password, fullName, phone);
+      if (res.access_token) {
+        localStorage.setItem('career_agent_token', res.access_token);
+        setUser(res.user);
+        setSuccessMsg('Account created & email verified successfully!');
+        await refreshUserData();
+        setTimeout(onClose, 800);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Verification failed. Please check the code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password Step 1: Request Password Reset OTP
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.forgotPassword(email);
+      setReceivedOtp(res.otp_code || '');
+      setOtpCode(res.otp_code || '');
+      setOtpStep(true);
+      setSuccessMsg(`Reset verification code sent to ${email}`);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'No account found with this email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password Step 2: Reset Password & Log In
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!otpCode || !newPassword) {
+      setError('Please enter both the reset code and your new password');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await api.resetPassword(email, otpCode, newPassword);
+      
+      // Auto login with new password
+      const res = await api.login(email, newPassword);
+      if (res.access_token) {
+        localStorage.setItem('career_agent_token', res.access_token);
+        setUser(res.user);
+        setSuccessMsg('Password reset successful! Logging you in...');
+        await refreshUserData();
+        setTimeout(onClose, 800);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to reset password.');
     } finally {
       setLoading(false);
     }
@@ -183,6 +275,15 @@ export function AuthModal({ isOpen, onClose }) {
     }
     return Math.abs(hash);
   }
+
+  const resetState = () => {
+    setError(null);
+    setSuccessMsg(null);
+    setOtpStep(false);
+    setOtpCode('');
+    setReceivedOtp('');
+    setNewPassword('');
+  };
 
   if (!isOpen) return null;
 
@@ -203,36 +304,38 @@ export function AuthModal({ isOpen, onClose }) {
             <Sparkles className="w-6 h-6 text-brand-400" />
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">AI Career Agent Sign In</h2>
-          <p className="text-xs text-slate-400">Join to discover personalized jobs and match with top companies</p>
+          <p className="text-xs text-slate-400">Discover personalized opportunities & connect with companies</p>
         </div>
 
-        {/* Auth Mode Tabs */}
-        <div className="flex p-1 rounded-2xl bg-surface border border-border">
-          <button
-            onClick={() => { setTab('google'); setError(null); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-              tab === 'google' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Google Sign-In
-          </button>
-          <button
-            onClick={() => { setTab('login'); setError(null); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-              tab === 'login' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Password Login
-          </button>
-          <button
-            onClick={() => { setTab('register'); setError(null); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-              tab === 'register' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
+        {/* Auth Mode Tabs (Hidden during forgot password sub-flow) */}
+        {tab !== 'forgot_password' && (
+          <div className="flex p-1 rounded-2xl bg-surface border border-border">
+            <button
+              onClick={() => { setTab('google'); resetState(); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                tab === 'google' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Google Sign-In
+            </button>
+            <button
+              onClick={() => { setTab('login'); resetState(); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                tab === 'login' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Password Login
+            </button>
+            <button
+              onClick={() => { setTab('register'); resetState(); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                tab === 'register' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-xl bg-accent-rose/10 border border-accent-rose/30 text-xs text-accent-rose">
@@ -242,101 +345,39 @@ export function AuthModal({ isOpen, onClose }) {
 
         {successMsg && (
           <div className="p-3 rounded-xl bg-accent-emerald/10 border border-accent-emerald/30 text-xs text-accent-emerald flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Google OAuth Tab */}
+        {/* ----------------- TAB 1: Ultra Clean Google Sign-In ----------------- */}
         {tab === 'google' && (
-          <div className="space-y-4">
-            {/* Google Verified Card */}
-            <div className="p-4 rounded-2xl bg-surface border border-border/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+          <div className="space-y-4 pt-1">
+            <div className="p-5 rounded-2xl bg-surface border border-border/80 text-center space-y-4">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-white flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-brand-400" />
-                  Google Student Account Setup
+                  Google OAuth 2.0 Single Sign-On
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30 font-bold">
-                  OAuth 2.0
-                </span>
+                <p className="text-[11px] text-slate-400">
+                  Instant sign-in with zero form filling required.
+                </p>
               </div>
 
-              {/* Generalized Profile info inputs */}
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[11px] text-slate-300 font-medium">Your Google Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. student@gmail.com"
-                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
-                  />
+              {/* Official Google GSI Render target if client ID is configured */}
+              {hasValidGoogleClientId && (
+                <div className="flex justify-center min-h-[44px]">
+                  <div id="google-signin-btn" ref={googleBtnRef}></div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] text-slate-300 font-medium">Full Name</label>
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Priya Sharma"
-                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-300 font-medium">College / University</label>
-                    <input
-                      type="text"
-                      value={collegeName}
-                      onChange={(e) => setCollegeName(e.target.value)}
-                      placeholder="e.g. BITS Pilani / NIT / IIT"
-                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] text-slate-300 font-medium">CGPA / Percentage</label>
-                    <input
-                      type="text"
-                      value={cgpa}
-                      onChange={(e) => setCgpa(e.target.value)}
-                      placeholder="e.g. 8.8/10 or 88%"
-                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-300 font-medium">Phone Number</label>
-                    <input
-                      type="text"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. +91 9876543210"
-                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* If official Google Client ID is configured, render official button */}
-              {hasValidGoogleClientId ? (
-                <div className="pt-2 flex flex-col items-center">
-                  <div id="google-signin-btn" ref={googleBtnRef} className="flex justify-center min-h-[44px]"></div>
-                </div>
-              ) : null}
-
-              {/* One-Click Google Sign-In Action */}
+              {/* Direct Primary Google Button */}
               <button
-                onClick={() => handleManualGoogleAuth(email, fullName, collegeName, cgpa)}
+                onClick={() => handleGoogleSignIn()}
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 transition shadow-lg shadow-white/5 cursor-pointer mt-2"
+                className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-3 transition shadow-lg shadow-white/10 cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -354,32 +395,32 @@ export function AuthModal({ isOpen, onClose }) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{loading ? 'Authenticating with Google...' : email ? `Continue with Google as ${email}` : 'Continue with Google Account'}</span>
+                <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
               </button>
             </div>
 
-            {/* Quick Switch Profiles */}
+            {/* Quick Demo Personas */}
             <div className="p-3 rounded-2xl bg-surface/50 border border-border/60 space-y-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Personas</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Accounts</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleManualGoogleAuth('alex.chen@gmail.com', 'Alex Chen', 'Stanford University', '9.4/10')}
+                  onClick={() => handleGoogleSignIn('alex.chen@gmail.com', 'Alex Chen')}
                   className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
                   <span className="font-bold block text-white truncate">Alex Chen</span>
-                  <span className="text-[10px] text-brand-300 block truncate">AI & Deep Learning</span>
+                  <span className="text-[10px] text-brand-300 block truncate">alex.chen@gmail.com</span>
                 </button>
                 <button
-                  onClick={() => handleManualGoogleAuth('priya.nair@gmail.com', 'Priya Nair', 'NIT Trichy', '9.1/10')}
+                  onClick={() => handleGoogleSignIn('priya.nair@gmail.com', 'Priya Nair')}
                   className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
                   <span className="font-bold block text-white truncate">Priya Nair</span>
-                  <span className="text-[10px] text-brand-300 block truncate">Full-Stack & Cloud</span>
+                  <span className="text-[10px] text-brand-300 block truncate">priya.nair@gmail.com</span>
                 </button>
               </div>
             </div>
 
-            {/* Google Cloud Console Setup Helper */}
+            {/* Optional Google Client ID Config Helper */}
             <div className="text-center">
               <button
                 type="button"
@@ -387,14 +428,14 @@ export function AuthModal({ isOpen, onClose }) {
                 className="text-[11px] text-slate-400 hover:text-white flex items-center justify-center gap-1 mx-auto transition cursor-pointer"
               >
                 <KeyRound className="w-3 h-3" />
-                <span>{showConfig ? 'Hide Google Cloud Client ID Setup' : 'Connect Real Google Cloud Client ID'}</span>
+                <span>{showConfig ? 'Hide Google Cloud Client ID Setup' : 'Configure Custom Google Client ID'}</span>
               </button>
               {showConfig && (
                 <div className="mt-2 p-3 rounded-xl bg-surface border border-border text-left space-y-2 animate-in fade-in">
                   <div className="flex items-start gap-1.5 text-slate-300 text-[11px]">
                     <Info className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
                     <span>
-                      To use Google's native popup, create a Web Client ID in{' '}
+                      Enter OAuth Client ID from{' '}
                       <a 
                         href="https://console.cloud.google.com/apis/credentials" 
                         target="_blank" 
@@ -402,15 +443,14 @@ export function AuthModal({ isOpen, onClose }) {
                         className="text-brand-400 hover:underline inline-flex items-center gap-0.5"
                       >
                         Google Cloud Console <ExternalLink className="w-2.5 h-2.5" />
-                      </a>{' '}
-                      and add <code className="bg-surface-card px-1 py-0.5 rounded text-white">http://localhost:3000</code> to Authorized JavaScript Origins.
+                      </a>
                     </span>
                   </div>
                   <input
                     type="text"
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
-                    placeholder="xxxx-xxxx.apps.googleusercontent.com"
+                    placeholder="xxxx.apps.googleusercontent.com"
                     className="w-full p-2 rounded-lg glass-input text-xs"
                   />
                 </div>
@@ -419,35 +459,9 @@ export function AuthModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* Credentials Form (Email/Password) */}
-        {(tab === 'login' || tab === 'register') && (
-          <form onSubmit={handleLocalSubmit} className="space-y-3">
-            {tab === 'register' && (
-              <>
-                <div>
-                  <label className="text-xs text-slate-400">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
-                    placeholder="e.g. Alex Chen"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">Phone Number</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
-                    placeholder="+91 9876543210"
-                  />
-                </div>
-              </>
-            )}
-
+        {/* ----------------- TAB 2: Standard Password Login ----------------- */}
+        {tab === 'login' && (
+          <form onSubmit={handleLoginSubmit} className="space-y-3">
             <div>
               <label className="text-xs text-slate-400">Email Address</label>
               <input
@@ -461,7 +475,16 @@ export function AuthModal({ isOpen, onClose }) {
             </div>
 
             <div>
-              <label className="text-xs text-slate-400">Password (Hashed & Salted)</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-slate-400">Password</label>
+                <button
+                  type="button"
+                  onClick={() => { setTab('forgot_password'); resetState(); }}
+                  className="text-[11px] text-brand-400 hover:underline cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <input
                 type="password"
                 required
@@ -477,9 +500,197 @@ export function AuthModal({ isOpen, onClose }) {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition shadow-lg shadow-brand-600/30 cursor-pointer mt-2"
             >
-              {loading ? 'Processing...' : tab === 'login' ? 'Sign In' : 'Create Student Account'}
+              {loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
+        )}
+
+        {/* ----------------- TAB 3: Create Account + Email OTP Verification ----------------- */}
+        {tab === 'register' && (
+          <div>
+            {!otpStep ? (
+              /* Registration Step 1: Input Details */
+              <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-400">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                    placeholder="e.g. Priya Sharma"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                    placeholder="name@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">Password *</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">Phone Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                    placeholder="+91 9876543210"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition shadow-lg shadow-brand-600/30 cursor-pointer mt-2"
+                >
+                  {loading ? 'Sending Code...' : 'Send Verification Code'}
+                </button>
+              </form>
+            ) : (
+              /* Registration Step 2: 6-Digit Email OTP Verification Code */
+              <form onSubmit={handleVerifyRegisterOTP} className="space-y-4 animate-in fade-in">
+                <div className="p-3.5 rounded-2xl bg-surface border border-border text-center space-y-1">
+                  <span className="text-xs font-bold text-white block">Email Verification Code</span>
+                  <p className="text-[11px] text-slate-400">
+                    We sent a 6-digit code to <strong className="text-brand-300">{email}</strong>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">Enter 6-Digit Code</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="123456"
+                    className="w-full p-3 rounded-xl glass-input text-center font-mono text-lg tracking-widest"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-accent-emerald hover:bg-emerald-600 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30 cursor-pointer"
+                >
+                  {loading ? 'Verifying...' : 'Verify Code & Create Account'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOtpStep(false)}
+                  className="w-full text-[11px] text-slate-400 hover:text-white flex items-center justify-center gap-1 transition cursor-pointer"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Back to Edit Details
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB 4: Forgot Password Flow ----------------- */}
+        {tab === 'forgot_password' && (
+          <div className="space-y-4 animate-in fade-in">
+            <button
+              onClick={() => { setTab('login'); resetState(); }}
+              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
+            </button>
+
+            {!otpStep ? (
+              /* Forgot Password Step 1: Send Reset Code */
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white">Reset Password</h3>
+                  <p className="text-xs text-slate-400">Enter your registered email to receive a 6-digit reset code.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                    placeholder="name@example.com"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition shadow-lg shadow-brand-600/30 cursor-pointer mt-2"
+                >
+                  {loading ? 'Sending Code...' : 'Send Reset Code'}
+                </button>
+              </form>
+            ) : (
+              /* Forgot Password Step 2: Input Reset Code + New Password */
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
+                <div className="p-3 rounded-xl bg-surface border border-border text-center">
+                  <p className="text-xs text-slate-300">
+                    Reset code sent to <strong className="text-brand-300">{email}</strong>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-medium">6-Digit Reset Code</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="123456"
+                    className="w-full p-2.5 rounded-xl glass-input text-center font-mono text-base tracking-widest mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-medium">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-accent-emerald hover:bg-emerald-600 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30 cursor-pointer"
+                >
+                  {loading ? 'Resetting...' : 'Reset Password & Log In'}
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
     </div>

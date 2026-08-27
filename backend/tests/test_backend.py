@@ -147,3 +147,40 @@ def test_google_oauth_and_academic_fields():
         assert "Python" in profile.skills
     finally:
         db.close()
+
+def test_otp_and_password_reset():
+    db = SessionLocal()
+    try:
+        from app.routers.auth import send_otp, verify_otp, forgot_password, reset_password
+        from app.schemas import SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest
+
+        email = "otp.test@example.com"
+        
+        # 1. Send OTP
+        send_req = SendOTPRequest(email=email, purpose="email_verification")
+        send_res = send_otp(send_req, db)
+        assert send_res["otp_code"] is not None
+        otp_code = send_res["otp_code"]
+
+        # 2. Verify OTP
+        verify_req = VerifyOTPRequest(email=email, otp_code=otp_code, purpose="email_verification")
+        verify_res = verify_otp(verify_req, db)
+        assert verify_res["email"] == email
+
+        # 3. Forgot password OTP flow
+        user = db.query(User).filter(User.email == "test.student@google.com").first()
+        if user:
+            fp_req = ForgotPasswordRequest(email=user.email)
+            fp_res = forgot_password(fp_req, db)
+            reset_code = fp_res["otp_code"]
+
+            # Reset password
+            reset_req = ResetPasswordRequest(email=user.email, otp_code=reset_code, new_password="NewSecurePassword@123")
+            reset_res = reset_password(reset_req, db)
+            assert "successful" in reset_res["message"]
+
+            # Verify password update
+            updated_user = db.query(User).filter(User.email == user.email).first()
+            assert verify_password("NewSecurePassword@123", updated_user.hashed_password) is True
+    finally:
+        db.close()

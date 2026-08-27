@@ -1,12 +1,130 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User, CandidateProfile, JobPreferences
-from app.schemas import UserCreate, UserLogin, Token, UserOut, GoogleAuthRequest
+import random
+from datetime import datetime, timedelta
+from app.models import User, CandidateProfile, JobPreferences, VerificationOTP
+from app.schemas import (
+    UserCreate, UserLogin, Token, UserOut, GoogleAuthRequest,
+    SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest
+)
 from app.services.auth_service import get_password_hash, verify_password, create_access_token
 from app.routers.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+@router.post("/send-otp")
+def send_otp(req: SendOTPRequest, db: Session = Depends(get_db)):
+    email = req.email.strip().lower()
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    # Deactivate previous active OTPs for this email & purpose
+    db.query(VerificationOTP).filter(
+        VerificationOTP.email == email,
+        VerificationOTP.purpose == req.purpose,
+        VerificationOTP.is_used == False
+    ).update({"is_used": True})
+
+    otp_record = VerificationOTP(
+        email=email,
+        otp_code=otp_code,
+        purpose=req.purpose,
+        expires_at=expires_at
+    )
+    db.add(otp_record)
+    db.commit()
+
+    print(f"[Verification OTP] Code for {email} ({req.purpose}): {otp_code}")
+    return {
+        "message": f"Verification code sent to {email}",
+        "email": email,
+        "otp_code": otp_code,
+        "expires_in_minutes": 10
+    }
+
+@router.post("/verify-otp")
+def verify_otp(req: VerifyOTPRequest, db: Session = Depends(get_db)):
+    email = req.email.strip().lower()
+    otp_record = db.query(VerificationOTP).filter(
+        VerificationOTP.email == email,
+        VerificationOTP.otp_code == req.otp_code.strip(),
+        VerificationOTP.purpose == req.purpose,
+        VerificationOTP.is_used == False,
+        VerificationOTP.expires_at >= datetime.utcnow()
+    ).first()
+
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code")
+
+    otp_record.is_used = True
+    
+    # Mark user verified if exists
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        user.is_verified = True
+    db.commit()
+
+    return {"message": "Verification code successfully validated", "email": email}
+
+@router.post("/forgot-password")
+def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    email = req.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No user found with this email address")
+
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    db.query(VerificationOTP).filter(
+        VerificationOTP.email == email,
+        VerificationOTP.purpose == "password_reset",
+        VerificationOTP.is_used == False
+    ).update({"is_used": True})
+
+    otp_record = VerificationOTP(
+        email=email,
+        otp_code=otp_code,
+        purpose="password_reset",
+        expires_at=expires_at
+    )
+    db.add(otp_record)
+    db.commit()
+
+    print(f"[Password Reset OTP] Code for {email}: {otp_code}")
+    return {
+        "message": f"Password reset verification code sent to {email}",
+        "email": email,
+        "otp_code": otp_code
+    }
+
+@router.post("/reset-password")
+def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    email = req.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No user found with this email address")
+
+    otp_record = db.query(VerificationOTP).filter(
+        VerificationOTP.email == email,
+        VerificationOTP.otp_code == req.otp_code.strip(),
+        VerificationOTP.purpose == "password_reset",
+        VerificationOTP.is_used == False,
+        VerificationOTP.expires_at >= datetime.utcnow()
+    ).first()
+
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+
+    if not req.new_password or len(req.new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters long")
+
+    user.hashed_password = get_password_hash(req.new_password)
+    otp_record.is_used = True
+    db.commit()
+
+    return {"message": "Password reset successful. You can now log in with your new password."}
 
 @router.post("/register", response_model=Token)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):

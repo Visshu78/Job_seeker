@@ -55,6 +55,22 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
+  sendOtp: (email, purpose = 'email_verification') => fetchApi('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, purpose })
+  }),
+  verifyOtp: (email, otp_code, purpose = 'email_verification') => fetchApi('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp_code, purpose })
+  }),
+  forgotPassword: (email) => fetchApi('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  }),
+  resetPassword: (email, otp_code, new_password) => fetchApi('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp_code, new_password })
+  }),
 
   // Dashboard
   getStats: () => fetchApi('/dashboard/stats'),

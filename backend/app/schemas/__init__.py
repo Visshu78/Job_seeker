@@ -27,6 +27,23 @@ class GoogleAuthRequest(BaseModel):
     cgpa: Optional[str] = None
     phone_number: Optional[str] = None
 
+class SendOTPRequest(BaseModel):
+    email: EmailStr
+    purpose: str = "email_verification"
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    purpose: str = "email_verification"
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
+
 class UserOut(UserBase):
     id: int
     is_active: bool

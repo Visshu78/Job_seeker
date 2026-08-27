@@ -30,6 +30,18 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
+class VerificationOTP(Base):
+    __tablename__ = "verification_otps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), index=True, nullable=False)
+    otp_code = Column(String(10), nullable=False)
+    purpose = Column(String(50), nullable=False)  # "email_verification", "password_reset"
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+
 class Resume(Base):
     __tablename__ = "resumes"
 
