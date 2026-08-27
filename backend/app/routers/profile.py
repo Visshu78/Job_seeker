@@ -13,20 +13,20 @@ def get_profile(current_user: User = Depends(get_current_user), db: Session = De
     if not profile:
         profile = CandidateProfile(
             user_id=current_user.id,
-            full_name=current_user.full_name or "Vishal Sharma",
+            full_name=current_user.full_name or "Candidate",
             email=current_user.email,
-            phone="+91 9876543210",
-            phone_number="+91 9876543210",
-            college_name="National Institute of Technology",
+            phone=current_user.phone_number or "+91 9876543210",
+            phone_number=current_user.phone_number or "+91 9876543210",
+            college_name="Engineering Institute / University",
             degree="B.Tech in Computer Science & Engineering",
-            cgpa="8.7/10",
+            cgpa="8.5/10",
             graduation_year=2025,
             schooling={
-                "class_10th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "95%"},
-                "class_12th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "94%"}
+                "class_10th": {"school": "Secondary School", "board": "CBSE", "percentage": "90%"},
+                "class_12th": {"school": "Higher Secondary School", "board": "CBSE", "percentage": "90%"}
             },
-            location="Bangalore, India",
-            headline="AI/ML Engineer | PyTorch, Computer Vision, Deep Learning",
+            location="India",
+            headline="AI/ML Engineer | PyTorch, Deep Learning",
             roles=["Machine Learning Engineer", "Computer Vision Engineer", "AI Engineer"],
             experience_level="Fresher",
             years_of_experience=0.5,

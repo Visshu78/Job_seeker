@@ -142,13 +142,13 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
             email=email,
             phone=req.phone_number,
             phone_number=req.phone_number,
-            college_name=req.college_name or "IIT Delhi",
-            degree="B.Tech in Computer Science",
-            cgpa=req.cgpa or "8.8/10",
+            college_name=req.college_name or "University / College",
+            degree="B.Tech in Computer Science & Engineering",
+            cgpa=req.cgpa or "8.5/10",
             graduation_year=2025,
             schooling={
-                "class_10th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "95%"},
-                "class_12th": {"school": "Delhi Public School", "board": "CBSE", "percentage": "94%"}
+                "class_10th": {"school": "Secondary School", "board": "CBSE", "percentage": "90%"},
+                "class_12th": {"school": "Higher Secondary School", "board": "CBSE", "percentage": "90%"}
             },
             roles=["Machine Learning Engineer", "AI Engineer", "Computer Vision Engineer"],
             skills=["Python", "PyTorch", "OpenCV", "Deep Learning", "Docker", "FastAPI", "SQL", "Git"]

@@ -10,13 +10,13 @@ export function AuthModal({ isOpen, onClose }) {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Form states
-  const [email, setEmail] = useState('vishaldhawal8853@gmail.com');
+  // Form states - Generalized for all users
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('Vishal Sharma');
-  const [phone, setPhone] = useState('+91 9876543210');
-  const [collegeName, setCollegeName] = useState('IIT Delhi');
-  const [cgpa, setCgpa] = useState('8.8/10');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [collegeName, setCollegeName] = useState('');
+  const [cgpa, setCgpa] = useState('');
   
   // Custom Google Client ID (from env or entered by user)
   const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -73,7 +73,6 @@ export function AuthModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      // Decode JWT token payload for visual confirmation
       const base64Url = response.credential.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
@@ -84,16 +83,15 @@ export function AuthModal({ isOpen, onClose }) {
       );
       const decoded = JSON.parse(jsonPayload);
 
-      // Verify and authenticate with backend
       const res = await api.googleAuth({
         id_token: response.credential,
         email: decoded.email,
         full_name: decoded.name,
         avatar_url: decoded.picture,
         google_id: decoded.sub,
-        college_name: collegeName || 'IIT Delhi',
-        cgpa: cgpa || '8.8/10',
-        phone_number: phone || '+91 9876543210'
+        college_name: collegeName || undefined,
+        cgpa: cgpa || undefined,
+        phone_number: phone || undefined
       });
 
       if (res.access_token) {
@@ -112,13 +110,19 @@ export function AuthModal({ isOpen, onClose }) {
   };
 
   const handleManualGoogleAuth = async (presetEmail, presetName, presetCollege, presetCgpa) => {
+    const targetEmail = presetEmail || email;
+    if (!targetEmail || !targetEmail.trim()) {
+      setError('Please enter your Google Email address to continue.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const gEmail = presetEmail || email || 'vishaldhawal8853@gmail.com';
-      const gName = presetName || fullName || 'Vishal Sharma';
-      const gCollege = presetCollege || collegeName || 'IIT Delhi';
-      const gCgpa = presetCgpa || cgpa || '8.8/10';
+      const gEmail = targetEmail.trim().toLowerCase();
+      const gName = presetName || fullName || gEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const gCollege = presetCollege || collegeName || 'University / College';
+      const gCgpa = presetCgpa || cgpa || '8.5/10';
 
       const res = await api.googleAuth({
         email: gEmail,
@@ -133,13 +137,13 @@ export function AuthModal({ isOpen, onClose }) {
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
-        setSuccessMsg(`Google Authenticated as ${res.user.full_name || gName} (${res.user.email})`);
+        setSuccessMsg(`Signed in as ${res.user.full_name || gName} (${res.user.email})`);
         await refreshUserData();
         setTimeout(onClose, 600);
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Google Authentication failed');
+      setError(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -199,7 +203,7 @@ export function AuthModal({ isOpen, onClose }) {
             <Sparkles className="w-6 h-6 text-brand-400" />
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">AI Career Agent Sign In</h2>
-          <p className="text-xs text-slate-400">Authenticate securely with Google or local student credentials</p>
+          <p className="text-xs text-slate-400">Join to discover personalized jobs and match with top companies</p>
         </div>
 
         {/* Auth Mode Tabs */}
@@ -251,44 +255,45 @@ export function AuthModal({ isOpen, onClose }) {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-brand-400" />
-                  Google Student Account Details
+                  Google Student Account Setup
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30 font-bold">
                   OAuth 2.0
                 </span>
               </div>
 
-              {/* Editable Google Profile info for authentication */}
+              {/* Generalized Profile info inputs */}
               <div className="space-y-2">
                 <div>
-                  <label className="text-[11px] text-slate-400">Google Email</label>
+                  <label className="text-[11px] text-slate-300 font-medium">Your Google Email *</label>
                   <input
                     type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. vishaldhawal8853@gmail.com"
+                    placeholder="e.g. student@gmail.com"
                     className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] text-slate-400">Full Name</label>
+                    <label className="text-[11px] text-slate-300 font-medium">Full Name</label>
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Vishal Sharma"
+                      placeholder="e.g. Priya Sharma"
                       className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400">College Name</label>
+                    <label className="text-[11px] text-slate-300 font-medium">College / University</label>
                     <input
                       type="text"
                       value={collegeName}
                       onChange={(e) => setCollegeName(e.target.value)}
-                      placeholder="IIT Delhi"
+                      placeholder="e.g. BITS Pilani / NIT / IIT"
                       className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
                     />
                   </div>
@@ -296,22 +301,22 @@ export function AuthModal({ isOpen, onClose }) {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] text-slate-400">CGPA / Score</label>
+                    <label className="text-[11px] text-slate-300 font-medium">CGPA / Percentage</label>
                     <input
                       type="text"
                       value={cgpa}
                       onChange={(e) => setCgpa(e.target.value)}
-                      placeholder="8.8/10"
+                      placeholder="e.g. 8.8/10 or 88%"
                       className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400">Phone</label>
+                    <label className="text-[11px] text-slate-300 font-medium">Phone Number</label>
                     <input
                       type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 9876543210"
+                      placeholder="e.g. +91 9876543210"
                       className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
                     />
                   </div>
@@ -349,27 +354,27 @@ export function AuthModal({ isOpen, onClose }) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{loading ? 'Signing in with Google...' : `Sign in as ${email || 'Google Account'}`}</span>
+                <span>{loading ? 'Authenticating with Google...' : email ? `Continue with Google as ${email}` : 'Continue with Google Account'}</span>
               </button>
             </div>
 
             {/* Quick Switch Profiles */}
             <div className="p-3 rounded-2xl bg-surface/50 border border-border/60 space-y-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Profiles</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Personas</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleManualGoogleAuth('vishaldhawal8853@gmail.com', 'Vishal Sharma', 'IIT Delhi', '8.8/10')}
+                  onClick={() => handleManualGoogleAuth('alex.chen@gmail.com', 'Alex Chen', 'Stanford University', '9.4/10')}
                   className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
-                  <span className="font-bold block text-white truncate">Vishal Sharma</span>
-                  <span className="text-[10px] text-brand-300 block truncate">vishaldhawal8853@gmail.com</span>
+                  <span className="font-bold block text-white truncate">Alex Chen</span>
+                  <span className="text-[10px] text-brand-300 block truncate">AI & Deep Learning</span>
                 </button>
                 <button
-                  onClick={() => handleManualGoogleAuth('aarav.patel@gmail.com', 'Aarav Patel', 'BITS Pilani', '9.2/10')}
+                  onClick={() => handleManualGoogleAuth('priya.nair@gmail.com', 'Priya Nair', 'NIT Trichy', '9.1/10')}
                   className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
-                  <span className="font-bold block text-white truncate">Aarav Patel</span>
-                  <span className="text-[10px] text-brand-300 block truncate">aarav.patel@gmail.com</span>
+                  <span className="font-bold block text-white truncate">Priya Nair</span>
+                  <span className="text-[10px] text-brand-300 block truncate">Full-Stack & Cloud</span>
                 </button>
               </div>
             </div>
@@ -427,7 +432,7 @@ export function AuthModal({ isOpen, onClose }) {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
-                    placeholder="Vishal Sharma"
+                    placeholder="e.g. Alex Chen"
                   />
                 </div>
                 <div>

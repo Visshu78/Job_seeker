@@ -137,7 +137,7 @@ export function ProfileStudioView() {
                 value={profile?.full_name || ''}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
                 className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
-                placeholder="e.g. Vishal Sharma"
+                placeholder="e.g. Alex Chen / Priya Sharma"
               />
             </div>
 
@@ -149,7 +149,7 @@ export function ProfileStudioView() {
                   value={profile?.email || ''}
                   onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                   className="w-full p-2.5 rounded-xl glass-input text-xs mt-1"
-                  placeholder="e.g. vishal@example.com"
+                  placeholder="e.g. candidate@gmail.com"
                 />
               </div>
 
