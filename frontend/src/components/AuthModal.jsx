@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useApp } from '../context/AppContext';
-import { X, Lock, Mail, User, Phone, GraduationCap, Award, Sparkles, CheckCircle2, ShieldCheck, KeyRound } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, GraduationCap, Award, Sparkles, CheckCircle2, ShieldCheck, KeyRound, Info, ExternalLink } from 'lucide-react';
 
 export function AuthModal({ isOpen, onClose }) {
   const { setUser, refreshUserData } = useApp();
@@ -11,28 +11,35 @@ export function AuthModal({ isOpen, onClose }) {
   const [successMsg, setSuccessMsg] = useState(null);
 
   // Form states
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('vishaldhawal8853@gmail.com');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState('Vishal Sharma');
+  const [phone, setPhone] = useState('+91 9876543210');
   const [collegeName, setCollegeName] = useState('IIT Delhi');
   const [cgpa, setCgpa] = useState('8.8/10');
   
-  // Custom Google Client ID (optional user provided or from env)
-  const defaultClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1029384756-sampleclientid.apps.googleusercontent.com';
-  const [clientId, setClientId] = useState(defaultClientId);
+  // Custom Google Client ID (from env or entered by user)
+  const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const [clientId, setClientId] = useState(envClientId);
   const [showConfig, setShowConfig] = useState(false);
   const googleBtnRef = useRef(null);
 
-  // Initialize official Google Identity Services button
+  const hasValidGoogleClientId = Boolean(
+    clientId && 
+    clientId.trim().length > 20 && 
+    clientId.includes('.apps.googleusercontent.com') && 
+    !clientId.includes('sampleclientid')
+  );
+
+  // Initialize official Google Identity Services button only if valid client ID exists
   useEffect(() => {
-    if (!isOpen || tab !== 'google') return;
+    if (!isOpen || tab !== 'google' || !hasValidGoogleClientId) return;
 
     const initGoogleGSI = () => {
       if (window.google?.accounts?.id) {
         try {
           window.google.accounts.id.initialize({
-            client_id: clientId,
+            client_id: clientId.trim(),
             callback: handleGoogleCredentialResponse,
             auto_select: false,
             cancel_on_tap_outside: true,
@@ -58,7 +65,7 @@ export function AuthModal({ isOpen, onClose }) {
 
     const timer = setTimeout(initGoogleGSI, 300);
     return () => clearTimeout(timer);
-  }, [isOpen, tab, clientId]);
+  }, [isOpen, tab, clientId, hasValidGoogleClientId]);
 
   // Callback when user signs in through official Google popup/prompt
   const handleGoogleCredentialResponse = async (response) => {
@@ -92,7 +99,7 @@ export function AuthModal({ isOpen, onClose }) {
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
-        setSuccessMsg(`Authenticated as ${decoded.name} (${decoded.email})`);
+        setSuccessMsg(`Google Verified: ${decoded.name} (${decoded.email})`);
         await refreshUserData();
         setTimeout(onClose, 800);
       }
@@ -108,7 +115,7 @@ export function AuthModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      const gEmail = presetEmail || email || 'vishal.student@gmail.com';
+      const gEmail = presetEmail || email || 'vishaldhawal8853@gmail.com';
       const gName = presetName || fullName || 'Vishal Sharma';
       const gCollege = presetCollege || collegeName || 'IIT Delhi';
       const gCgpa = presetCgpa || cgpa || '8.8/10';
@@ -126,7 +133,7 @@ export function AuthModal({ isOpen, onClose }) {
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
         setUser(res.user);
-        setSuccessMsg(`Authenticated as ${res.user.full_name || gName} (${res.user.email})`);
+        setSuccessMsg(`Google Authenticated as ${res.user.full_name || gName} (${res.user.email})`);
         await refreshUserData();
         setTimeout(onClose, 600);
       }
@@ -239,21 +246,90 @@ export function AuthModal({ isOpen, onClose }) {
         {/* Google OAuth Tab */}
         {tab === 'google' && (
           <div className="space-y-4">
-            {/* Live Google Official Button Container */}
-            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-surface border border-border/80 text-center space-y-3">
-              <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-brand-400" />
-                Google Verified Authentication
-              </span>
+            {/* Google Verified Card */}
+            <div className="p-4 rounded-2xl bg-surface border border-border/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-brand-400" />
+                  Google Student Account Details
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30 font-bold">
+                  OAuth 2.0
+                </span>
+              </div>
 
-              {/* GSI Render target */}
-              <div id="google-signin-btn" ref={googleBtnRef} className="flex justify-center min-h-[44px]"></div>
+              {/* Editable Google Profile info for authentication */}
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[11px] text-slate-400">Google Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g. vishaldhawal8853@gmail.com"
+                    className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
+                  />
+                </div>
 
-              {/* Direct fallback trigger */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-400">Full Name</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Vishal Sharma"
+                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400">College Name</label>
+                    <input
+                      type="text"
+                      value={collegeName}
+                      onChange={(e) => setCollegeName(e.target.value)}
+                      placeholder="IIT Delhi"
+                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-400">CGPA / Score</label>
+                    <input
+                      type="text"
+                      value={cgpa}
+                      onChange={(e) => setCgpa(e.target.value)}
+                      placeholder="8.8/10"
+                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-400">Phone</label>
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 9876543210"
+                      className="w-full p-2.5 rounded-xl glass-input text-xs mt-0.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* If official Google Client ID is configured, render official button */}
+              {hasValidGoogleClientId ? (
+                <div className="pt-2 flex flex-col items-center">
+                  <div id="google-signin-btn" ref={googleBtnRef} className="flex justify-center min-h-[44px]"></div>
+                </div>
+              ) : null}
+
+              {/* One-Click Google Sign-In Action */}
               <button
                 onClick={() => handleManualGoogleAuth(email, fullName, collegeName, cgpa)}
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 transition shadow-sm cursor-pointer"
+                className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 transition shadow-lg shadow-white/5 cursor-pointer mt-2"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
@@ -273,32 +349,32 @@ export function AuthModal({ isOpen, onClose }) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{loading ? 'Verifying with Google...' : 'Continue with Google Account'}</span>
+                <span>{loading ? 'Signing in with Google...' : `Sign in as ${email || 'Google Account'}`}</span>
               </button>
             </div>
 
-            {/* Quick Profile Switching */}
+            {/* Quick Switch Profiles */}
             <div className="p-3 rounded-2xl bg-surface/50 border border-border/60 space-y-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Switch Student Profiles</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Profiles</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleManualGoogleAuth('vishal.aiml@example.com', 'Vishal Sharma', 'IIT Delhi', '8.8/10')}
-                  className="p-2 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
+                  onClick={() => handleManualGoogleAuth('vishaldhawal8853@gmail.com', 'Vishal Sharma', 'IIT Delhi', '8.8/10')}
+                  className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
                   <span className="font-bold block text-white truncate">Vishal Sharma</span>
-                  <span className="text-[10px] text-brand-300 block">IIT Delhi · 8.8 CGPA</span>
+                  <span className="text-[10px] text-brand-300 block truncate">vishaldhawal8853@gmail.com</span>
                 </button>
                 <button
-                  onClick={() => handleManualGoogleAuth('aarav.cv@example.com', 'Aarav Patel', 'BITS Pilani', '9.2/10')}
-                  className="p-2 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
+                  onClick={() => handleManualGoogleAuth('aarav.patel@gmail.com', 'Aarav Patel', 'BITS Pilani', '9.2/10')}
+                  className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
                   <span className="font-bold block text-white truncate">Aarav Patel</span>
-                  <span className="text-[10px] text-brand-300 block">BITS Pilani · 9.2 CGPA</span>
+                  <span className="text-[10px] text-brand-300 block truncate">aarav.patel@gmail.com</span>
                 </button>
               </div>
             </div>
 
-            {/* Optional Google Client ID Config Drawer */}
+            {/* Google Cloud Console Setup Helper */}
             <div className="text-center">
               <button
                 type="button"
@@ -306,21 +382,32 @@ export function AuthModal({ isOpen, onClose }) {
                 className="text-[11px] text-slate-400 hover:text-white flex items-center justify-center gap-1 mx-auto transition cursor-pointer"
               >
                 <KeyRound className="w-3 h-3" />
-                <span>{showConfig ? 'Hide Google Client ID' : 'Configure Custom Google Client ID'}</span>
+                <span>{showConfig ? 'Hide Google Cloud Client ID Setup' : 'Connect Real Google Cloud Client ID'}</span>
               </button>
               {showConfig && (
                 <div className="mt-2 p-3 rounded-xl bg-surface border border-border text-left space-y-2 animate-in fade-in">
-                  <label className="text-[11px] text-slate-300 font-medium">Google Cloud OAuth Client ID</label>
+                  <div className="flex items-start gap-1.5 text-slate-300 text-[11px]">
+                    <Info className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+                    <span>
+                      To use Google's native popup, create a Web Client ID in{' '}
+                      <a 
+                        href="https://console.cloud.google.com/apis/credentials" 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-brand-400 hover:underline inline-flex items-center gap-0.5"
+                      >
+                        Google Cloud Console <ExternalLink className="w-2.5 h-2.5" />
+                      </a>{' '}
+                      and add <code className="bg-surface-card px-1 py-0.5 rounded text-white">http://localhost:3000</code> to Authorized JavaScript Origins.
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
-                    placeholder="your-app.apps.googleusercontent.com"
+                    placeholder="xxxx-xxxx.apps.googleusercontent.com"
                     className="w-full p-2 rounded-lg glass-input text-xs"
                   />
-                  <p className="text-[10px] text-slate-500">
-                    Get from Google Cloud Console &gt; Credentials &gt; OAuth 2.0 Client IDs.
-                  </p>
                 </div>
               )}
             </div>
