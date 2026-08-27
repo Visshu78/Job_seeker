@@ -113,10 +113,16 @@ export function AuthModal({ isOpen, onClose }) {
   };
 
   const handleGoogleSignIn = async (presetEmail, presetName) => {
+    const targetEmail = presetEmail || email.trim();
+    if (!targetEmail) {
+      setError('Please enter your Google Email address below to sign in with your account.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const gEmail = presetEmail || (email.trim() ? email.trim() : 'candidate.google@gmail.com');
+      const gEmail = targetEmail.toLowerCase();
       const gName = presetName || (fullName.trim() ? fullName.trim() : gEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
 
       const res = await api.googleAuth({
@@ -195,10 +201,7 @@ export function AuthModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      // Verify OTP with backend
       await api.verifyOtp(email, otpCode, 'email_verification');
-      
-      // Complete Registration
       const res = await api.register(email, password, fullName, phone);
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
@@ -249,8 +252,6 @@ export function AuthModal({ isOpen, onClose }) {
     setError(null);
     try {
       await api.resetPassword(email, otpCode, newPassword);
-      
-      // Auto login with new password
       const res = await api.login(email, newPassword);
       if (res.access_token) {
         localStorage.setItem('career_agent_token', res.access_token);
@@ -307,7 +308,7 @@ export function AuthModal({ isOpen, onClose }) {
           <p className="text-xs text-slate-400">Discover personalized opportunities & connect with companies</p>
         </div>
 
-        {/* Auth Mode Tabs (Hidden during forgot password sub-flow) */}
+        {/* Auth Mode Tabs */}
         {tab !== 'forgot_password' && (
           <div className="flex p-1 rounded-2xl bg-surface border border-border">
             <button
@@ -350,18 +351,30 @@ export function AuthModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* ----------------- TAB 1: Ultra Clean Google Sign-In ----------------- */}
+        {/* ----------------- TAB 1: Google Sign-In ----------------- */}
         {tab === 'google' && (
           <div className="space-y-4 pt-1">
-            <div className="p-5 rounded-2xl bg-surface border border-border/80 text-center space-y-4">
-              <div className="space-y-1">
+            <div className="p-5 rounded-2xl bg-surface border border-border/80 space-y-4">
+              <div className="text-center space-y-1">
                 <span className="text-xs font-bold text-white flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-brand-400" />
-                  Google OAuth 2.0 Single Sign-On
+                  Sign In with Your Google Account
                 </span>
                 <p className="text-[11px] text-slate-400">
-                  Instant sign-in with zero form filling required.
+                  Enter your Google email to sign in directly as your account.
                 </p>
+              </div>
+
+              {/* Email Input for user's Google Account */}
+              <div className="space-y-1 text-left">
+                <label className="text-[11px] text-slate-300 font-medium">Your Google Email Address *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. vishaldhawal8853@gmail.com"
+                  className="w-full p-2.5 rounded-xl glass-input text-xs"
+                />
               </div>
 
               {/* Official Google GSI Render target if client ID is configured */}
@@ -371,7 +384,7 @@ export function AuthModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Direct Primary Google Button */}
+              {/* Primary Google Button */}
               <button
                 onClick={() => handleGoogleSignIn()}
                 disabled={loading}
@@ -395,27 +408,33 @@ export function AuthModal({ isOpen, onClose }) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
+                <span>
+                  {loading 
+                    ? 'Connecting to Google...' 
+                    : email.trim() 
+                      ? `Continue as ${email.trim()}` 
+                      : 'Continue with Google Account'}
+                </span>
               </button>
             </div>
 
-            {/* Quick Demo Personas */}
+            {/* Quick Switch Profiles */}
             <div className="p-3 rounded-2xl bg-surface/50 border border-border/60 space-y-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Demo Accounts</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Quick Select Accounts</span>
               <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleGoogleSignIn('vishaldhawal8853@gmail.com', 'Vishal Sharma')}
+                  className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
+                >
+                  <span className="font-bold block text-white truncate">Vishal Sharma</span>
+                  <span className="text-[10px] text-brand-300 block truncate">vishaldhawal8853@gmail.com</span>
+                </button>
                 <button
                   onClick={() => handleGoogleSignIn('alex.chen@gmail.com', 'Alex Chen')}
                   className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
                 >
                   <span className="font-bold block text-white truncate">Alex Chen</span>
                   <span className="text-[10px] text-brand-300 block truncate">alex.chen@gmail.com</span>
-                </button>
-                <button
-                  onClick={() => handleGoogleSignIn('priya.nair@gmail.com', 'Priya Nair')}
-                  className="p-2.5 rounded-xl bg-surface-card hover:bg-surface-hover border border-border text-[11px] text-slate-300 transition text-left cursor-pointer"
-                >
-                  <span className="font-bold block text-white truncate">Priya Nair</span>
-                  <span className="text-[10px] text-brand-300 block truncate">priya.nair@gmail.com</span>
                 </button>
               </div>
             </div>
@@ -509,7 +528,6 @@ export function AuthModal({ isOpen, onClose }) {
         {tab === 'register' && (
           <div>
             {!otpStep ? (
-              /* Registration Step 1: Input Details */
               <form onSubmit={handleRegisterSubmit} className="space-y-3">
                 <div>
                   <label className="text-xs text-slate-400">Full Name</label>
@@ -567,7 +585,6 @@ export function AuthModal({ isOpen, onClose }) {
                 </button>
               </form>
             ) : (
-              /* Registration Step 2: 6-Digit Email OTP Verification Code */
               <form onSubmit={handleVerifyRegisterOTP} className="space-y-4 animate-in fade-in">
                 <div className="p-3.5 rounded-2xl bg-surface border border-border text-center space-y-1">
                   <span className="text-xs font-bold text-white block">Email Verification Code</span>
@@ -620,7 +637,6 @@ export function AuthModal({ isOpen, onClose }) {
             </button>
 
             {!otpStep ? (
-              /* Forgot Password Step 1: Send Reset Code */
               <form onSubmit={handleForgotPasswordSubmit} className="space-y-3">
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-white">Reset Password</h3>
@@ -648,7 +664,6 @@ export function AuthModal({ isOpen, onClose }) {
                 </button>
               </form>
             ) : (
-              /* Forgot Password Step 2: Input Reset Code + New Password */
               <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
                 <div className="p-3 rounded-xl bg-surface border border-border text-center">
                   <p className="text-xs text-slate-300">
