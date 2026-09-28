@@ -1,0 +1,3738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TalentScout &mdash; Talent Discovery & Recruiter Outreach</title>
+  <meta name="description" content="Enterprise HR, recruiter discovery, cold outreach engine, and Google Sheets sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base:        #09090b;
+      --bg-surface:     #111115;
+      --bg-card:        #16161c;
+      --bg-card-hover:  #1d1d24;
+      --bg-subtle:      #23232c;
+      --bg-elevated:    #2a2a35;
+
+      --border-subtle:  rgba(255, 255, 255, 0.06);
+      --border-default: rgba(255, 255, 255, 0.1);
+      --border-active:  rgba(255, 255, 255, 0.2);
+
+      --accent:         #3b82f6;
+      --accent-hover:   #2563eb;
+      --accent-subtle:  rgba(59, 130, 246, 0.12);
+      --accent-text:    #60a5fa;
+
+      --emerald:        #10b981;
+      --emerald-subtle: rgba(16, 185, 129, 0.12);
+      --emerald-text:   #34d399;
+
+      --amber:          #f59e0b;
+      --amber-subtle:   rgba(245, 158, 11, 0.12);
+      --amber-text:     #fbbf24;
+
+      --rose:           #f43f5e;
+      --rose-subtle:    rgba(244, 63, 94, 0.12);
+      --rose-text:      #fb7185;
+
+      --text-main:      #f4f4f5;
+      --text-muted:     #a1a1aa;
+      --text-tertiary:  #71717a;
+
+      --font-sans:      'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono:      'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+      --radius-sm:      6px;
+      --radius-md:      10px;
+      --radius-lg:      14px;
+      --radius-full:    9999px;
+
+      --sidebar-w:      256px;
+      --topbar-h:       60px;
+      --transition-fast: 0.15s ease;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 13.5px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+      user-select: none;
+    }
+
+    .sidebar-header {
+      height: var(--topbar-h);
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .brand-icon-box {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(145deg, #2563eb, #1d4ed8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-version {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 14px 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
+      padding: 12px 10px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 10px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-subtle);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background: var(--bg-subtle);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: 6px;
+      bottom: 6px;
+      width: 3px;
+      border-radius: 3px;
+      background: var(--accent);
+    }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .nav-item.active .nav-icon {
+      opacity: 1;
+      color: var(--accent-text);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: var(--radius-full);
+      padding: 1px 7px;
+      line-height: 1.3;
+    }
+
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(17, 17, 21, 0.6);
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+
+    .status-dot.idle {
+      background: var(--emerald);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+
+    .status-dot.running {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+      animation: pulse 1.6s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Main Area */
+    .main-wrapper {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* Topbar */
+    .topbar {
+      height: var(--topbar-h);
+      background: rgba(17, 17, 21, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: var(--text-main);
+    }
+
+    .topbar-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Page container */
+    .page-container {
+      padding: 24px 28px 48px;
+      max-width: 1400px;
+      width: 100%;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      user-select: none;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border-color: var(--border-default);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-subtle);
+      border-color: var(--border-active);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-subtle);
+      color: var(--text-main);
+    }
+
+    .btn-sm {
+      padding: 4px 9px;
+      font-size: 12px;
+    }
+
+    .btn-lg {
+      padding: 10px 18px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      position: relative;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Grids */
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stat-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .stat-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+    }
+
+    .stat-hint {
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 5px;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .form-textarea {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-subtle);
+    }
+
+    /* Switch Toggle */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      transition: var(--transition-fast);
+      border-radius: 20px;
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 2px;
+      bottom: 2px;
+      background-color: var(--text-muted);
+      transition: var(--transition-fast);
+      border-radius: 50%;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(16px);
+      background-color: #ffffff;
+    }
+
+    /* Chips & Badges */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      line-height: 1.4;
+    }
+
+    .chip-gray   { background: var(--bg-subtle); color: var(--text-muted); border-color: var(--border-subtle); }
+    .chip-green  { background: var(--emerald-subtle); color: var(--emerald-text); border-color: rgba(16, 185, 129, 0.25); }
+    .chip-blue   { background: var(--accent-subtle); color: var(--accent-text); border-color: rgba(59, 130, 246, 0.25); }
+    .chip-amber  { background: var(--amber-subtle); color: var(--amber-text); border-color: rgba(245, 158, 11, 0.25); }
+    .chip-purple { background: rgba(139, 92, 246, 0.12); color: #c084fc; border-color: rgba(139, 92, 246, 0.25); }
+    .chip-cyan   { background: rgba(6, 182, 212, 0.12); color: #22d3ee; border-color: rgba(6, 182, 212, 0.25); }
+    .chip-red    { background: var(--rose-subtle); color: var(--rose-text); border-color: rgba(244, 63, 94, 0.25); }
+    .chip-yellow { background: var(--amber-subtle); color: var(--amber-text); border-color: rgba(245, 158, 11, 0.25); }
+
+    /* Progress bar */
+    .progress-track {
+      background: var(--bg-subtle);
+      border-radius: var(--radius-full);
+      height: 6px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: var(--radius-full);
+      transition: width 0.3s ease;
+    }
+
+    /* Terminal / Log area */
+    .log-area {
+      background: #09090b;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      height: 170px;
+      overflow-y: auto;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .log-entry { display: block; }
+    .log-entry.info { color: var(--text-muted); }
+    .log-entry.success { color: var(--emerald-text); }
+    .log-entry.warning { color: var(--amber-text); }
+    .log-entry.error { color: var(--rose-text); }
+
+    /* Modern Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .table-toolbar {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(22, 22, 28, 0.5);
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 380px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px 7px 32px;
+      font-size: 12.5px;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .results-table th {
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      white-space: nowrap;
+    }
+
+    .results-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .results-table tbody tr {
+      transition: background var(--transition-fast);
+    }
+
+    .results-table tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    /* Floating selection action bar */
+    .selection-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius-full);
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.7);
+      z-index: 100;
+      animation: slideUp 0.2s ease-out;
+    }
+
+    /* Custom Checkbox */
+    .custom-check {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--bg-surface);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .custom-check:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .custom-check:checked::after {
+      content: '';
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      position: absolute;
+      top: 1px;
+    }
+
+    /* Contact Details in Table */
+    .person-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar-initials {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-default);
+      flex-shrink: 0;
+    }
+
+    .person-name {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 13.5px;
+    }
+
+    .person-company {
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .email-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid transparent;
+      max-width: 220px;
+    }
+
+    .email-cell:hover {
+      background: var(--bg-subtle);
+      border-color: var(--border-subtle);
+    }
+
+    .email-link {
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .email-work {
+      color: var(--emerald-text);
+    }
+
+    .email-pers {
+      color: var(--amber-text);
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity var(--transition-fast), color var(--transition-fast);
+    }
+
+    .email-cell:hover .copy-btn {
+      opacity: 1;
+    }
+
+    .copy-btn:hover {
+      color: var(--text-main);
+    }
+
+    .btn-linkedin {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: var(--radius-sm);
+      background: rgba(59, 130, 246, 0.08);
+      color: #60a5fa;
+      text-decoration: none;
+      font-size: 11.5px;
+      font-weight: 500;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      transition: background var(--transition-fast);
+    }
+
+    .btn-linkedin:hover {
+      background: rgba(59, 130, 246, 0.18);
+    }
+
+    /* Verification Badge */
+    .badge-verified {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: var(--emerald-subtle);
+      color: var(--emerald-text);
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .badge-unverified {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Tool Cards */
+    .tool-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      transition: border-color var(--transition-fast);
+      position: relative;
+    }
+
+    .tool-card.enabled {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .tool-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .tool-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tool-badge-box {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .tool-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .tool-limit {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* Waterfall List */
+    .waterfall-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .waterfall-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+
+    .waterfall-num {
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+    }
+
+    /* Roles Tag Container */
+    .roles-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .role-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .role-tag-remove {
+      cursor: pointer;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+    }
+
+    .role-tag-remove:hover {
+      color: var(--rose-text);
+    }
+
+    /* Preset Item */
+    .preset-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    /* Variable Tag Pills */
+    .var-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--accent-text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+      transition: all var(--transition-fast);
+    }
+
+    .var-pill:hover {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      width: 650px;
+      max-width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    .empty-state svg {
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .empty-text {
+      font-size: 13px;
+    }
+
+    /* Toasts */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+
+    .toast-success { border-color: rgba(16, 185, 129, 0.4); }
+    .toast-error   { border-color: rgba(244, 63, 94, 0.4); }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="#" class="brand-mark" onclick="showPage('dashboard'); return false;">
+        <div class="brand-icon-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+        </div>
+        <div class="brand-title">
+          TalentScout
+          <span class="brand-version">PRO</span>
+        </div>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+      <button class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        </span>
+        Dashboard
+      </button>
+
+      <button class="nav-item" onclick="showPage('run')" id="nav-run">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        </span>
+        Run Pipeline
+      </button>
+
+      <button class="nav-item" onclick="showPage('results')" id="nav-results">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        Discovered Leads
+        <span class="nav-badge" id="results-badge" style="display:none">0</span>
+      </button>
+
+      <div class="nav-label">Outreach & Delivery</div>
+      <button class="nav-item" onclick="showPage('outreach')" id="nav-outreach">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        </span>
+        Email Outreach
+      </button>
+
+      <button class="nav-item" onclick="showPage('outbox')" id="nav-outbox">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+        </span>
+        Outbox & History
+        <span class="nav-badge" id="outbox-badge" style="display:none">0</span>
+      </button>
+
+      <div class="nav-label">Configuration</div>
+      <button class="nav-item" onclick="showPage('tools')" id="nav-tools">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </span>
+        Tools & APIs
+      </button>
+
+      <button class="nav-item" onclick="showPage('roles')" id="nav-roles">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+        </span>
+        Target Roles
+      </button>
+
+      <button class="nav-item" onclick="showPage('schedule')" id="nav-schedule">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+        Automations
+      </button>
+
+      <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        Settings
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="connection-status">
+        <div class="status-dot idle" id="sidebar-status-dot"></div>
+        <span id="sidebar-status-text">Engine Ready</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="refreshData()" title="Refresh Data">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN WRAPPER -->
+  <div class="main-wrapper">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="topbar-title" id="topbar-title">Dashboard</h1>
+        <span class="topbar-sub" id="topbar-sub">Overview of your contact discovery pipeline</span>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openSheetsModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+          Google Sheets
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="showPage('run')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          New Search
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="showPage('outreach')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          Compose Outreach
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT BODY -->
+    <main class="page-container">
+
+      <!-- ================= PAGE: DASHBOARD ================= -->
+      <div class="page active" id="page-dashboard">
+        <div class="grid-stats">
+          <div class="stat-card">
+            <div class="stat-meta">
+              <span class="stat-label">Discovered Contacts</span>
+              <div class="stat-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-total">&mdash;</div>
+            <div class="stat-hint">Across all active campaigns</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-meta">
+              <span class="stat-label">SMTP Deliverable</span>
+              <div class="stat-icon" style="color:var(--emerald-text)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-verified" style="color:var(--emerald-text)">&mdash;</div>
+            <div class="stat-hint">Confirmed inbox valid</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-meta">
+              <span class="stat-label">Outreach Dispatched</span>
+              <div class="stat-icon" style="color:var(--accent-text)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-outbox">0</div>
+            <div class="stat-hint">Cold emails sent to recruiters</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-meta">
+              <span class="stat-label">Active Engines</span>
+              <div class="stat-icon" style="color:var(--amber-text)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-tools">&mdash;</div>
+            <div class="stat-hint">Enabled search providers</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Quick Search</div>
+                <div class="card-sub">Enter target companies to discover HR recruiters immediately</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Companies (one per line)</label>
+              <textarea class="form-textarea" id="quick-companies" rows="6" placeholder="Stripe&#10;Google&#10;Datadog&#10;Figma"></textarea>
+            </div>
+
+            <button class="btn btn-primary" id="quick-run-btn" onclick="quickRun()" style="width:100%">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+              Start Discovery Pipeline
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Live Pipeline Activity</div>
+                <div class="card-sub" id="progress-subtitle">Idle &mdash; waiting for next run</div>
+              </div>
+              <span id="pipeline-status-chip" class="chip chip-gray">Idle</span>
+            </div>
+
+            <div style="margin-bottom: 12px">
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-bottom:4px">
+                <span id="progress-label">Waiting for run...</span>
+                <span id="progress-pct" style="font-family:var(--font-mono)">0%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+              </div>
+            </div>
+
+            <div class="log-area" id="pipeline-log">
+              <div style="color:var(--text-tertiary)">Pipeline terminal ready. Logs appear here in real-time.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Active Enrichment Waterfall</div>
+              <div class="card-sub">Order of tools queried during company contact discovery</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('tools')">Configure Engines &rarr;</button>
+          </div>
+          <div id="active-tools-overview" class="waterfall-list"></div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: RUN PIPELINE ================= -->
+      <div class="page" id="page-run">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Input Specification</div>
+                <div class="card-sub">Select company list source for search</div>
+              </div>
+              <div style="display:flex; gap:6px">
+                <button class="btn btn-secondary btn-sm" id="input-tab-text" onclick="switchInputTab('text')" style="background:var(--accent);color:#fff">Paste Names</button>
+                <button class="btn btn-secondary btn-sm" id="input-tab-csv" onclick="switchInputTab('csv')">CSV File</button>
+              </div>
+            </div>
+
+            <div id="input-panel-text">
+              <div class="form-group">
+                <label class="form-label">Company Names</label>
+                <textarea class="form-textarea" id="run-companies" rows="8"
+                  placeholder="Stripe&#10;Google&#10;Datadog&#10;Notion&#10;Airbnb"
+                  oninput="updateCompanyCount()"></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11.5px; color:var(--text-tertiary)">
+                  <span id="company-count">0 companies parsed</span>
+                  <span>Separate by new line or comma</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="input-panel-csv" style="display:none">
+              <div class="form-group">
+                <label class="form-label">CSV File Path</label>
+                <input type="text" class="form-input" id="run-csv-path" value="input/companies_sample.csv" />
+                <div class="form-hint">Path relative to project root or absolute path</div>
+              </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:14px">
+              <div class="form-group">
+                <label class="form-label">Max Contacts / Company</label>
+                <input type="number" class="form-input" id="run-max-per-company" value="5" min="1" max="20" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Min Confidence</label>
+                <input type="range" id="run-confidence" min="0" max="1" step="0.1" value="0.5"
+                  oninput="document.getElementById('run-confidence-val').textContent=(this.value*100).toFixed(0)+'%'"
+                  style="width:100%; margin-top:8px" />
+                <div class="form-hint">Threshold: <span id="run-confidence-val" style="font-weight:600; color:var(--text-main)">50%</span></div>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px; padding-top:12px; border-top:1px solid var(--border-subtle)">
+              <div class="toggle-wrap">
+                <label class="toggle">
+                  <input type="checkbox" id="run-verify" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+                <div>
+                  <div style="font-size:12.5px; font-weight:600">SMTP Deliverability Check</div>
+                  <div style="font-size:11px; color:var(--text-tertiary)">Verify email against company MX mail server</div>
+                </div>
+              </div>
+
+              <div class="toggle-wrap">
+                <label class="toggle">
+                  <input type="checkbox" id="run-stop-first" />
+                  <span class="toggle-slider"></span>
+                </label>
+                <div>
+                  <div style="font-size:12.5px; font-weight:600">Stop On First Match</div>
+                  <div style="font-size:11px; color:var(--text-tertiary)">Halt company search once first verified contact is found</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:16px">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Target Role Focus</div>
+                  <div class="card-sub">Keywords used in recruiter discovery</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="showPage('roles')">Edit &rarr;</button>
+              </div>
+              <div id="run-active-roles" class="roles-container"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Discovery Waterfall</div>
+                  <div class="card-sub">Active search priority</div>
+                </div>
+              </div>
+              <div id="run-waterfall" class="waterfall-list"></div>
+            </div>
+
+            <button class="btn btn-primary btn-lg" id="run-btn" onclick="startRun()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+              Launch Discovery Job
+            </button>
+
+            <div class="card" style="padding:14px">
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-bottom:4px">
+                <span id="run-progress-label">Not started</span>
+                <span id="run-progress-pct" style="font-family:var(--font-mono)">&mdash;</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-bar" id="run-progress-bar" style="width:0%"></div>
+              </div>
+              <div class="log-area" id="run-log" style="height:120px; margin-top:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: RESULTS ================= -->
+      <div class="page" id="page-results">
+        <div class="table-container">
+          <div class="table-toolbar">
+            <div class="search-wrapper">
+              <span class="search-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </span>
+              <input type="text" class="search-input" id="results-search" placeholder="Search by name, company, email, or role..." oninput="filterResults()" />
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="openSheetsModal()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                Sync to Google Sheets
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="exportCSV()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="clearResults()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="results-table" id="results-table">
+              <thead>
+                <tr>
+                  <th style="width:36px">
+                    <input type="checkbox" class="custom-check" id="select-all-leads" onchange="toggleSelectAll(this.checked)" />
+                  </th>
+                  <th style="width:36px">#</th>
+                  <th>Name</th>
+                  <th>Designation / Role</th>
+                  <th>Company</th>
+                  <th>LinkedIn</th>
+                  <th>Corporate Email</th>
+                  <th>Personal Email</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody">
+                <tr>
+                  <td colspan="10">
+                    <div class="empty-state">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      <div class="empty-text">No contacts discovered yet. Run the pipeline to populate results.</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Floating Selection Bar -->
+        <div class="selection-bar" id="selection-bar" style="display:none">
+          <span style="font-weight:600; font-size:12.5px; color:var(--text-main)" id="selected-count-label">0 selected</span>
+          <button class="btn btn-primary btn-sm" onclick="openOutreachModalForSelected()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            Send Cold Outreach
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="syncSelectedToSheets()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            Push to Sheets
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="clearSelection()" title="Clear Selection">
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: OUTREACH & TEMPLATES ================= -->
+      <div class="page" id="page-outreach">
+        <div class="grid-2">
+          <!-- Template Editor Card -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Email Outreach Templates</div>
+                <div class="card-sub">Customize messages sent to recruiters and hiring leads</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="createNewTemplate()">+ New Template</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Active Template</label>
+              <select class="form-select" id="tpl-select" onchange="loadSelectedTemplate()">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Template Name</label>
+              <input type="text" class="form-input" id="tpl-name" placeholder="Template Name" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Subject Line</label>
+              <input type="text" class="form-input" id="tpl-subject" placeholder="Application: {{Role}} &mdash; {{My_Name}}" />
+            </div>
+
+            <div style="margin-bottom:8px">
+              <span style="font-size:11px; color:var(--text-tertiary); margin-right:6px">Insert variable:</span>
+              <div id="var-pills-container" style="display:inline-flex; flex-wrap:wrap; gap:4px">
+                <!-- Dynamically updated via JS -->
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Message Body</label>
+              <textarea class="form-textarea" id="tpl-body" rows="12" placeholder="Hi {{First_Name}}, ..."></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center">
+              <button class="btn btn-primary" onclick="saveCurrentTemplate()">Save Template</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteCurrentTemplate()" style="color:var(--rose-text)">Delete</button>
+            </div>
+          </div>
+
+          <!-- Configuration & Preview -->
+          <div style="display:flex; flex-direction:column; gap:16px">
+            <!-- Candidate Profile -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">My Candidate Profile</div>
+                  <div class="card-sub">Values inserted into dynamic email tags</div>
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label class="form-label">My Full Name</label>
+                  <input type="text" class="form-input" id="prof-name" placeholder="John Doe" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Target Role</label>
+                  <input type="text" class="form-input" id="prof-role" placeholder="Senior Software Engineer" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label class="form-label">My Email</label>
+                  <input type="email" class="form-input" id="prof-email" placeholder="john@example.com" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">My Phone</label>
+                  <input type="text" class="form-input" id="prof-phone" placeholder="+1 (555) 019-2834" />
+                </div>
+              </div>
+
+              <!-- Dynamic Links Section with + Add New Link Button -->
+              <div style="border-top:1px solid var(--border-subtle); padding-top:14px; margin-top:14px">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                  <div>
+                    <div style="font-size:13px; font-weight:600; color:var(--text-main)">My Links & Profiles</div>
+                    <div style="font-size:11px; color:var(--text-tertiary)">Add any custom links (Portfolio, LinkedIn, GitHub, Calendly, etc.)</div>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="addNewProfileLink()" style="background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.3); color:var(--accent-text)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    + Add New Link
+                  </button>
+                </div>
+
+                <div id="profile-links-list" style="display:flex; flex-direction:column; gap:8px">
+                  <!-- Populated dynamically via JS -->
+                </div>
+              </div>
+
+              <!-- Resume Upload -->
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Resume Attachment (PDF)</label>
+                <div style="display:flex; align-items:center; gap:10px">
+                  <input type="file" id="resume-file-input" accept=".pdf" style="display:none" onchange="uploadResumeFile()" />
+                  <button class="btn btn-secondary btn-sm" onclick="document.getElementById('resume-file-input').click()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Choose PDF
+                  </button>
+                  <span id="resume-status" style="font-size:12px; color:var(--text-muted)">No resume uploaded yet</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modern Authentication Card (Google OAuth 2.0 + SMTP Fallback) -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Outreach Authentication & Security</div>
+                  <div class="card-sub">Dispatch cold emails securely via Google OAuth 2.0 or SMTP</div>
+                </div>
+                <div style="display:flex; gap:6px">
+                  <button class="btn btn-secondary btn-sm" id="auth-tab-oauth" onclick="switchAuthTab('oauth')" style="background:var(--accent); color:#fff">Google OAuth</button>
+                  <button class="btn btn-secondary btn-sm" id="auth-tab-smtp" onclick="switchAuthTab('smtp')">SMTP Fallback</button>
+                </div>
+              </div>
+
+              <!-- PANEL 1: GOOGLE OAUTH 2.0 -->
+              <div id="auth-panel-oauth">
+                <!-- Status bar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); margin-bottom:14px">
+                  <div style="display:flex; align-items:center; gap:10px">
+                    <div id="google-status-icon" style="width:28px; height:28px; border-radius:50%; background:var(--bg-subtle); display:flex; align-items:center; justify-content:center">
+                      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.1 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2c0 2.8.7 5.5 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.1-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/></svg>
+                    </div>
+                    <div>
+                      <div style="font-weight:600; font-size:13px; color:var(--text-main)" id="google-status-label">Google OAuth 2.0</div>
+                      <div style="font-size:11.5px; color:var(--text-muted)" id="google-status-sub">No Google account connected</div>
+                    </div>
+                  </div>
+                  <span class="chip chip-gray" id="google-status-chip">Not Connected</span>
+                </div>
+
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Client ID</label>
+                    <input type="text" class="form-input" id="google-client-id" placeholder="123456789-xxx.apps.googleusercontent.com" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Client Secret</label>
+                    <input type="password" class="form-input" id="google-client-secret" placeholder="GOCSPX-xxxxxx" />
+                  </div>
+                </div>
+
+                <!-- Connect / Revoke buttons -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px">
+                  <div style="display:flex; gap:8px">
+                    <input type="file" id="client-secret-file" accept=".json" style="display:none" onchange="uploadClientSecretJson()" />
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('client-secret-file').click()" title="Upload client_secret.json downloaded from Google Cloud">
+                      Upload client_secret.json
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btn-connect-google" onclick="connectGoogleOAuth()">
+                      <svg width="13" height="13" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.1 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2c0 2.8.7 5.5 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.1-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/></svg>
+                      Connect with Google
+                    </button>
+                  </div>
+                  <div style="display:flex; gap:6px">
+                    <button class="btn btn-secondary btn-sm" onclick="testSmtpConnection()">Verify Token</button>
+                    <button class="btn btn-ghost btn-sm" id="btn-disconnect-google" onclick="disconnectGoogleOAuth()" style="display:none; color:var(--rose-text)">Disconnect</button>
+                  </div>
+                </div>
+
+                <!-- Google Cloud Setup Guide (collapsible) -->
+                <div style="margin-top:14px; padding:10px 12px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); font-size:11.5px; line-height:1.6; color:var(--text-muted)">
+                  <div style="font-weight:600; color:var(--text-main); margin-bottom:4px; display:flex; align-items:center; gap:6px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    How to get your free Google OAuth credentials (2 minutes):
+                  </div>
+                  1. Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-text); font-weight:600; text-decoration:none">Google Cloud Console &rarr; Credentials</a>.<br/>
+                  2. Create an <strong>OAuth Client ID</strong> &rarr; Application Type: <strong>Web application</strong>.<br/>
+                  3. In <strong>Authorized redirect URIs</strong>, add: <code style="color:var(--emerald-text); background:var(--bg-elevated); padding:1px 5px; border-radius:3px">http://127.0.0.1:5000/api/auth/google/callback</code><br/>
+                  4. Paste your Client ID & Secret above, or click <strong>Upload client_secret.json</strong>.
+                </div>
+              </div>
+
+              <!-- PANEL 2: TRADITIONAL SMTP FALLBACK -->
+              <div id="auth-panel-smtp" style="display:none">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">SMTP Host</label>
+                    <input type="text" class="form-input" id="smtp-host" value="smtp.gmail.com" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Port</label>
+                    <input type="number" class="form-input" id="smtp-port" value="587" />
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Sender Email / User</label>
+                    <input type="email" class="form-input" id="smtp-user" placeholder="your.email@gmail.com" />
+                  </div>
+                  <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+                      <label class="form-label" style="margin:0">App Password</label>
+                      <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent-text); font-size:11px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:3px">
+                        Get Password &rarr;
+                      </a>
+                    </div>
+                    <input type="password" class="form-input" id="smtp-password" placeholder="16-character app password (e.g. abcd efgh ijkl mnop)" />
+                  </div>
+                </div>
+
+                <div style="margin: 10px 0 14px; padding: 10px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 11.5px; line-height: 1.6; color: var(--text-muted)">
+                  <div style="font-weight:600; color:var(--text-main); margin-bottom:4px">Alternative Gmail App Password:</div>
+                  Ensure 2-Step Verification is ON &rarr; Open <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent-text); text-decoration:underline">myaccount.google.com/apppasswords</a> &rarr; Generate 16-letter code.
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                  <button class="btn btn-secondary btn-sm" onclick="testSmtpConnection()">Test SMTP</button>
+                  <button class="btn btn-primary btn-sm" onclick="saveOutreachSettings()">Save SMTP Config</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: OUTBOX & HISTORY ================= -->
+      <div class="page" id="page-outbox">
+        <div class="table-container">
+          <div class="table-toolbar">
+            <div>
+              <div style="font-weight:700; font-size:14px; color:var(--text-main)">Outreach History & Delivery Log</div>
+              <div style="font-size:12px; color:var(--text-muted)">All cold emails dispatched through the engine</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadOutboxHistory()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              Refresh Log
+            </button>
+          </div>
+
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width:36px">#</th>
+                <th>Recipient</th>
+                <th>Company</th>
+                <th>Email Address</th>
+                <th>Subject</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="outbox-tbody">
+              <tr>
+                <td colspan="7">
+                  <div class="empty-state">
+                    <div class="empty-text">No outreach emails dispatched yet.</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: TOOLS & APIS ================= -->
+      <div class="page" id="page-tools">
+        <div class="card-header" style="margin-bottom:20px">
+          <div>
+            <div class="card-title" style="font-size:16px">Enrichment & Discovery Engines</div>
+            <div class="card-sub">Enable data providers, supply API keys, or use the free built-in LinkedIn & SMTP engines</div>
+          </div>
+        </div>
+
+        <div class="grid-2" id="tools-grid"></div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Search Waterfall Resolution Order</div>
+              <div class="card-sub">The discovery engine queries enabled providers sequentially until contacts are found</div>
+            </div>
+          </div>
+          <div id="waterfall-order" class="waterfall-list"></div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: ROLES ================= -->
+      <div class="page" id="page-roles">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Role Preset Profiles</div>
+                <div class="card-sub">Quickly toggle predefined talent recruiting categories</div>
+              </div>
+            </div>
+            <div id="preset-toggles"></div>
+
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle)">
+              <div class="card-title" style="font-size:13px; margin-bottom:8px">Custom Role Keywords</div>
+              <div class="roles-container" id="custom-roles-container" style="margin-bottom:12px"></div>
+              <div style="display:flex; gap:8px">
+                <input type="text" class="form-input" id="custom-role-input" placeholder="e.g. Lead Talent Scout" onkeydown="if(event.key==='Enter')addCustomRole()" />
+                <button class="btn btn-secondary" onclick="addCustomRole()">Add</button>
+              </div>
+            </div>
+
+            <div style="margin-top:20px">
+              <button class="btn btn-primary" onclick="saveRoles()">Save Role Preferences</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Currently Active Target Titles</div>
+                <div class="card-sub">Every search queries these titles against candidate profiles</div>
+              </div>
+            </div>
+            <div id="all-active-roles" class="roles-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: SCHEDULE ================= -->
+      <div class="page" id="page-schedule">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Automated Discovery Schedules</div>
+                <div class="card-sub">Run discovery pipeline automatically on a recurring cadence</div>
+              </div>
+            </div>
+
+            <div class="toggle-wrap" style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border-subtle)">
+              <label class="toggle">
+                <input type="checkbox" id="sched-enabled" onchange="saveSchedule()" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:13px; font-weight:600">Enable Recurring Schedule</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Frequency</label>
+              <select class="form-select" id="sched-freq" onchange="updateScheduleUI()">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Run Time (Local)</label>
+              <input type="time" class="form-input" id="sched-time" value="09:00" />
+            </div>
+
+            <div class="form-group" id="sched-day-week-wrap">
+              <label class="form-label">Day of Week</label>
+              <select class="form-select" id="sched-day-week">
+                <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+                <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="sched-day-month-wrap" style="display:none">
+              <label class="form-label">Day of Month</label>
+              <input type="number" class="form-input" id="sched-day-month" value="1" min="1" max="28" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Input Companies File</label>
+              <input type="text" class="form-input" id="sched-input-file" value="input/companies.csv" />
+              <div class="form-hint">Path relative to project root</div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:20px">
+              <button class="btn btn-primary" onclick="saveSchedule()">Save Schedule</button>
+              <button class="btn btn-secondary" onclick="triggerNow()">Run Now</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Generated Export Files</div>
+                <div class="card-sub">Recent CSV and JSON lead lists saved in output directory</div>
+              </div>
+            </div>
+            <div id="output-files-list">
+              <div class="empty-state">
+                <div class="empty-text">No output files yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PAGE: SETTINGS ================= -->
+      <div class="page" id="page-settings">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Output & Storage</div>
+                <div class="card-sub">Format preferences for discovered candidate leads</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Output Format</label>
+              <select class="form-select" id="out-format">
+                <option value="csv">CSV only</option>
+                <option value="json">JSON only</option>
+                <option value="both">Both CSV + JSON</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Output Directory</label>
+              <input type="text" class="form-input" id="out-dir" value="output" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Filename Prefix</label>
+              <input type="text" class="form-input" id="out-filename" value="contacts" />
+            </div>
+
+            <div class="toggle-wrap" style="margin-bottom:18px">
+              <label class="toggle">
+                <input type="checkbox" id="out-unverified" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:13px">Include unverified emails in exported files</span>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveSettings()">Save Output Settings</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Engine Concurrency & Verification</div>
+                <div class="card-sub">Fine-tune network rate-limits and safety limits</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Max Concurrent Companies</label>
+              <input type="number" class="form-input" id="set-workers" value="3" min="1" max="10" />
+              <div class="form-hint">Higher = faster throughput; lower = lower rate-limit risk</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Request Delay (seconds)</label>
+              <input type="number" class="form-input" id="set-delay" value="1.5" min="0.5" max="10" step="0.5" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Min Confidence Score</label>
+              <input type="range" id="set-confidence" min="0" max="1" step="0.05" value="0.5"
+                oninput="document.getElementById('set-confidence-val').textContent=(this.value*100).toFixed(0)+'%'"
+                style="width:100%" />
+              <div class="form-hint">Current threshold: <span id="set-confidence-val" style="font-weight:600; color:var(--text-main)">50%</span></div>
+            </div>
+
+            <div class="toggle-wrap" style="margin-bottom:12px">
+              <label class="toggle">
+                <input type="checkbox" id="set-verify" checked />
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:13px">Verify candidate emails via SMTP handshake</span>
+            </div>
+
+            <div class="toggle-wrap">
+              <label class="toggle">
+                <input type="checkbox" id="set-stop-first" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:13px">Halt search on first matching lead per company</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ================= MODAL: OUTREACH SEND ================= -->
+<div class="modal-backdrop" id="modal-outreach">
+  <div class="modal-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+      <div>
+        <div style="font-size:16px; font-weight:700; color:var(--text-main)">Send Cold Email Outreach</div>
+        <div style="font-size:12px; color:var(--text-muted)" id="modal-outreach-recipient">Preparing dispatch...</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeOutreachModal()">&times;</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Select Template</label>
+      <select class="form-select" id="modal-tpl-select" onchange="updateOutreachModalPreview()">
+        <!-- Populated via JS -->
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Rendered Subject</label>
+      <input type="text" class="form-input" id="modal-preview-subject" readonly />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Rendered Message Preview</label>
+      <textarea class="form-textarea" id="modal-preview-body" rows="9" readonly></textarea>
+    </div>
+
+    <div class="toggle-wrap" style="margin-bottom:18px">
+      <label class="toggle">
+        <input type="checkbox" id="modal-attach-resume" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <span style="font-size:13px">Attach Resume PDF</span>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px">
+      <button class="btn btn-secondary" onclick="closeOutreachModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-send-btn" onclick="executeOutreachSend()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        Send Outreach Now
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: GOOGLE SHEETS SYNC ================= -->
+<div class="modal-backdrop" id="modal-sheets">
+  <div class="modal-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+      <div>
+        <div style="font-size:16px; font-weight:700; color:var(--text-main)">Sync with Google Sheets</div>
+        <div style="font-size:12px; color:var(--text-muted)">Push discovered candidate leads directly to your sheet</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeSheetsModal()">&times;</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Google Apps Script Webhook URL (Recommended &mdash; Zero Setup)</label>
+      <input type="url" class="form-input" id="sheets-webhook-url" placeholder="https://script.google.com/macros/s/.../exec" />
+      <div class="form-hint">Paste your Google Apps Script WebApp endpoint. Automatically appends rows without API credentials.</div>
+    </div>
+
+    <div style="margin-bottom:16px; padding:10px 12px; background:var(--bg-surface); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:11.5px; color:var(--text-muted)">
+      <div style="font-weight:600; color:var(--text-main); margin-bottom:4px">How to create a free Webhook in 30 seconds:</div>
+      1. Open your Google Sheet &rarr; Extensions &rarr; Apps Script<br/>
+      2. Paste the 10-line handler script (<span style="color:var(--accent-text); cursor:pointer" onclick="copyAppsScriptCode()">Click here to copy script</span>)<br/>
+      3. Deploy &rarr; New Deployment &rarr; Web app (access: Anyone) &rarr; Copy URL
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Or: Google Spreadsheet ID (For Service Account)</label>
+      <input type="text" class="form-input" id="sheets-spreadsheet-id" placeholder="1BxiMVs0XR..." />
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px">
+      <button class="btn btn-secondary" onclick="saveSheetsConfig()">Save Credentials</button>
+      <button class="btn btn-primary" id="sheets-sync-btn" onclick="syncAllToSheets()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+        Sync All Leads to Sheet
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ================= JAVASCRIPT LOGIC ================= -->
+<script>
+let appConfig = {};
+let allContacts = [];
+let filteredContacts = [];
+let selectedContacts = new Set();
+let allTemplates = [];
+let currentModalContact = null;
+let currentModalContactsList = [];
+let socket;
+
+const TOOL_META = {
+  apollo_io:   { name: 'Apollo.io',   monogram: 'AP', tier: 'freemium', limit: '50 emails / day',   link: 'https://app.apollo.io/settings/integrations/api' },
+  hunter_io:   { name: 'Hunter.io',   monogram: 'HN', tier: 'freemium', limit: '25 searches / mo',  link: 'https://hunter.io/users/sign_up' },
+  signalhire:  { name: 'SignalHire',  monogram: 'SH', tier: 'freemium', limit: '5 contacts / day',  link: 'https://www.signalhire.com/api' },
+  snov_io:     { name: 'Snov.io',     monogram: 'SN', tier: 'freemium', limit: '50 credits / mo',   link: 'https://app.snov.io/api-setting' },
+  rocketreach: { name: 'RocketReach', monogram: 'RR', tier: 'freemium', limit: '5 lookups / mo',    link: 'https://rocketreach.co/developer' },
+  contactout:  { name: 'ContactOut',  monogram: 'CO', tier: 'freemium', limit: '40 exports / mo',   link: 'https://contactout.com' },
+  free_tools:  { name: 'Free Engine', monogram: 'OS', tier: 'free',     limit: 'Unlimited (DDG+MX)',link: '#' },
+};
+
+const PRESET_META = {
+  hr_team:          { label: 'HR Leadership & Operations', desc: 'HR Managers, HR Directors, Business Partners' },
+  recruiters:       { label: 'Recruiters & Talent Acquisition', desc: 'Technical Recruiters, TA Managers, Sourcers' },
+  people_ops:       { label: 'People Operations', desc: 'People Ops Managers, VPs of People, Culture Leads' },
+  engineering_leads:{ label: 'Engineering Hiring Leads', desc: 'Engineering Managers, CTOs, VPs of Engineering' },
+};
+
+// ================= INITIALIZATION =================
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadConfig();
+  connectSocket();
+  loadOutputFiles();
+  await loadExistingResults();
+  await loadOutreachConfig();
+  await loadTemplates();
+  await loadOutboxHistory();
+  checkGoogleAuthStatus();
+});
+
+async function loadExistingResults() {
+  try {
+    const res = await fetch('/api/results');
+    const data = await res.json();
+    if (data.success && data.contacts && data.contacts.length > 0) {
+      allContacts = data.contacts;
+      renderResults(allContacts);
+      updateBadge(allContacts.length);
+    }
+  } catch(e) {
+    console.warn('Could not load existing results:', e);
+  }
+}
+
+// ================= SOCKET.IO =================
+function connectSocket() {
+  try {
+    socket = io();
+    socket.on('pipeline_event', handlePipelineEvent);
+    socket.on('outreach_event', handleOutreachEvent);
+    socket.on('connect', () => log('Connected to live engine daemon', 'success'));
+    socket.on('disconnect', () => log('Disconnected from live daemon', 'warning'));
+  } catch(e) {
+    log('WebSocket unavailable &mdash; polling disabled', 'warning');
+  }
+}
+
+function handlePipelineEvent(payload) {
+  const { event, data } = payload;
+  if (event === 'start') {
+    setStatus('running');
+    updateProgress(0, data.total);
+  } else if (event === 'company_done') {
+    updateProgress(data.progress, data.total);
+    log(`${data.company}: ${data.contacts_found} contact(s) discovered`, 'success');
+  } else if (event === 'done') {
+    setStatus('done');
+    if (data.contacts) {
+      allContacts = data.contacts;
+      renderResults(allContacts);
+      updateBadge(allContacts.length);
+    }
+    log(`Discovery complete &mdash; ${allContacts.length} total contacts identified`, 'success');
+    toast(`Found ${allContacts.length} contacts!`, 'success');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('quick-run-btn').disabled = false;
+  } else if (event === 'error') {
+    log(`Error: ${data.message}`, 'error');
+    setStatus('idle');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('quick-run-btn').disabled = false;
+  }
+}
+
+function handleOutreachEvent(payload) {
+  const { event, data } = payload;
+  if (event === 'start') {
+    toast(`Starting outreach to ${data.total} contacts...`, 'info');
+  } else if (event === 'progress') {
+    if (data.success) {
+      toast(`[${data.current}/${data.total}] Sent to ${data.contact}`, 'success');
+    } else {
+      toast(`[${data.current}/${data.total}] Failed for ${data.contact}`, 'error');
+    }
+    loadOutboxHistory();
+  } else if (event === 'done') {
+    toast(`Outreach complete! ${data.sent} sent, ${data.failed} failed`, 'success');
+    loadOutboxHistory();
+  }
+}
+
+// ================= CONFIGURATION =================
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    if (data.success) {
+      appConfig = data.config;
+      renderToolsPage();
+      renderRolesPage();
+      renderDashboardStats();
+      renderWaterfallOrder();
+      populateSettings();
+      populateSchedule();
+      populateRunPage();
+      populateSheetsModalConfig();
+    }
+  } catch(e) {
+    toast('Cannot connect to backend server', 'error');
+  }
+}
+
+async function saveConfig(patch) {
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadConfig();
+      toast('Configuration saved', 'success');
+    }
+  } catch(e) {
+    toast('Failed to save config', 'error');
+  }
+}
+
+// ================= NAVIGATION =================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const pageEl = document.getElementById(`page-${name}`);
+  const navEl = document.getElementById(`nav-${name}`);
+  if (pageEl) pageEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+
+  const titles = {
+    dashboard: ['Dashboard', 'Overview of your contact discovery and outreach engine'],
+    run:       ['Run Pipeline', 'Configure and launch a new talent search job'],
+    results:   ['Discovered Leads', 'Verified candidate records, email intelligence, and outreach'],
+    outreach:  ['Email Outreach', 'Compose personalized cold application templates and SMTP setup'],
+    outbox:    ['Outbox & History', 'Audit log of all outreach attempts and deliverability'],
+    tools:     ['Tools & APIs', 'Configure provider credentials and search waterfall'],
+    roles:     ['Target Roles', 'Manage targeted recruiter and HR job titles'],
+    schedule:  ['Automations', 'Configure recurring discovery jobs and inspect exports'],
+    settings:  ['Settings', 'Concurrency, rate limiting, and output parameters'],
+  };
+  const [t, s] = titles[name] || ['TalentScout', ''];
+  document.getElementById('topbar-title').textContent = t;
+  document.getElementById('topbar-sub').textContent = s;
+
+  if (name === 'results') renderResults(allContacts);
+  if (name === 'outbox') loadOutboxHistory();
+  if (name === 'schedule') loadOutputFiles();
+}
+
+// ================= DASHBOARD RENDER =================
+function renderDashboardStats() {
+  const tools = appConfig.tools || {};
+  const enabledCount = Object.values(tools).filter(t => t.enabled).length;
+  const roles = getActiveRoles();
+
+  document.getElementById('stat-total').textContent = allContacts.length || '0';
+  document.getElementById('stat-verified').textContent = allContacts.filter(c => c['Email Verified'] === 'True' || c['Email Verified'] === true).length || '0';
+  document.getElementById('stat-tools').textContent = enabledCount;
+
+  const container = document.getElementById('active-tools-overview');
+  const order = appConfig.pipeline?.waterfall_order || [];
+  const enabled = order.filter(t => tools[t]?.enabled);
+
+  if (enabled.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-text">No tools enabled. Navigate to Tools & APIs to activate providers.</div></div>';
+  } else {
+    container.innerHTML = enabled.map((t, i) => {
+      const meta = TOOL_META[t] || {};
+      return `<div class="waterfall-item">
+        <div class="waterfall-num">${i+1}</div>
+        <span style="font-weight:600; color:var(--text-main)">${meta.name || t}</span>
+        <span class="chip ${meta.tier === 'free' ? 'chip-green' : 'chip-blue'}">${meta.tier.toUpperCase()}</span>
+        <span style="margin-left:auto; font-size:11.5px; color:var(--text-tertiary)">${meta.limit || ''}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ================= TOOLS PAGE =================
+function renderToolsPage() {
+  const tools = appConfig.tools || {};
+  const grid = document.getElementById('tools-grid');
+  if (!grid) return;
+
+  grid.innerHTML = Object.entries(TOOL_META).map(([key, meta]) => {
+    const cfg = tools[key] || {};
+    const enabled = cfg.enabled || false;
+
+    return `<div class="tool-card ${enabled ? 'enabled' : ''}" id="tool-card-${key}">
+      <div class="tool-header">
+        <div class="tool-name-wrap">
+          <div class="tool-badge-box">${meta.monogram}</div>
+          <div>
+            <div class="tool-name">${meta.name}</div>
+            <div class="tool-limit">${meta.limit}</div>
+          </div>
+        </div>
+        <span class="chip ${meta.tier === 'free' ? 'chip-green' : 'chip-blue'}">${meta.tier.toUpperCase()}</span>
+      </div>
+
+      <div class="toggle-wrap" style="margin-bottom:14px">
+        <label class="toggle">
+          <input type="checkbox" id="tool-toggle-${key}" ${enabled ? 'checked' : ''}
+            onchange="toggleTool('${key}', this.checked)" />
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:12.5px; font-weight:600; color:${enabled ? 'var(--text-main)' : 'var(--text-muted)'}">${enabled ? 'Active' : 'Disabled'}</span>
+      </div>
+
+      ${key === 'snov_io' ? `
+        <div class="form-group">
+          <label class="form-label">Client ID</label>
+          <input type="text" class="form-input" id="tool-client-id-${key}"
+            value="${cfg.client_id || ''}" placeholder="Snov.io Client ID"
+            onchange="saveToolKey('${key}', 'client_id', this.value)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Client Secret</label>
+          <input type="password" class="form-input" id="tool-client-secret-${key}"
+            value="${cfg.client_secret || ''}" placeholder="Client Secret"
+            onchange="saveToolKey('${key}', 'client_secret', this.value)" />
+        </div>
+      ` : key !== 'free_tools' ? `
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input type="password" class="form-input" id="tool-apikey-${key}"
+            value="${cfg.api_key || ''}" placeholder="Paste API Key"
+            onchange="saveToolKey('${key}', 'api_key', this.value)" />
+          <div class="form-hint"><a href="${meta.link}" target="_blank" style="color:var(--accent-text); text-decoration:none">Get API credentials &rarr;</a></div>
+        </div>
+      ` : `
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px; padding:10px; background:var(--bg-surface); border-radius:var(--radius-sm)">
+          <div class="toggle-wrap">
+            <label class="toggle"><input type="checkbox" id="free-smtp" ${cfg.use_smtp_verify ? 'checked' : ''}
+              onchange="saveToolKey('${key}', 'use_smtp_verify', this.checked)" /><span class="toggle-slider"></span></label>
+            <span style="font-size:12px">Direct SMTP MX Verification</span>
+          </div>
+          <div class="toggle-wrap">
+            <label class="toggle"><input type="checkbox" id="free-pattern" ${cfg.use_pattern_guess !== false ? 'checked' : ''}
+              onchange="saveToolKey('${key}', 'use_pattern_guess', this.checked)" /><span class="toggle-slider"></span></label>
+            <span style="font-size:12px">Pattern Guessing (first.last, etc.)</span>
+          </div>
+          <div class="toggle-wrap">
+            <label class="toggle"><input type="checkbox" id="free-linkedin" ${cfg.use_linkedin_scrape ? 'checked' : ''}
+              onchange="saveToolKey('${key}', 'use_linkedin_scrape', this.checked)" /><span class="toggle-slider"></span></label>
+            <span style="font-size:12px">DuckDuckGo Search Engine</span>
+          </div>
+        </div>
+      `}
+    </div>`;
+  }).join('');
+}
+
+async function toggleTool(key, enabled) {
+  const card = document.getElementById(`tool-card-${key}`);
+  if (card) card.classList.toggle('enabled', enabled);
+  await saveToolConfig(key, { enabled });
+  renderWaterfallOrder();
+  renderDashboardStats();
+}
+
+async function saveToolKey(key, field, value) {
+  await saveToolConfig(key, { [field]: value });
+}
+
+async function saveToolConfig(key, patch) {
+  try {
+    await fetch(`/api/config/tool/${key}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(patch),
+    });
+    await loadConfig();
+  } catch(e) {
+    toast('Failed to save tool config', 'error');
+  }
+}
+
+// ================= WATERFALL =================
+function renderWaterfallOrder() {
+  const tools = appConfig.tools || {};
+  const order = appConfig.pipeline?.waterfall_order || [];
+  const enabled = order.filter(t => tools[t]?.enabled);
+
+  const html = enabled.length === 0
+    ? '<div style="color:var(--text-tertiary); font-size:12.5px; padding:10px">No providers enabled in waterfall.</div>'
+    : enabled.map((t, i) => {
+        const meta = TOOL_META[t] || {};
+        return `<div class="waterfall-item">
+          <div class="waterfall-num">${i+1}</div>
+          <span style="font-weight:600; color:var(--text-main)">${meta.name || t}</span>
+          <span class="chip ${meta.tier === 'free' ? 'chip-green' : 'chip-blue'}">${meta.tier.toUpperCase()}</span>
+          <span style="margin-left:auto; font-size:11.5px; color:var(--text-tertiary)">${meta.limit || ''}</span>
+        </div>`;
+      }).join('');
+
+  ['waterfall-order', 'run-waterfall'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
+// ================= ROLES =================
+function renderRolesPage() {
+  const presets = appConfig.search?.role_presets || {};
+  const active = presets.active_presets || [];
+  const container = document.getElementById('preset-toggles');
+  if (!container) return;
+
+  container.innerHTML = Object.entries(PRESET_META).map(([key, meta]) => {
+    const isChecked = active.includes(key);
+    return `<div class="preset-box">
+      <div>
+        <div style="font-weight:600; font-size:13px; color:var(--text-main)">${meta.label}</div>
+        <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px">${meta.desc}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="preset-${key}" ${isChecked ? 'checked' : ''} onchange="updateActiveRoles()" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>`;
+  }).join('');
+
+  renderCustomRoles(presets.custom || []);
+  updateActiveRoles();
+}
+
+function renderCustomRoles(custom) {
+  const container = document.getElementById('custom-roles-container');
+  if (!container) return;
+  container.innerHTML = custom.map(r => `
+    <span class="role-tag">
+      ${r}
+      <span class="role-tag-remove" onclick="removeCustomRole('${r.replace(/'/g, "\\'")}')">&times;</span>
+    </span>
+  `).join('') || '<span style="color:var(--text-tertiary); font-size:12px">No custom roles added yet</span>';
+}
+
+function updateActiveRoles() {
+  const roles = getActiveRoles();
+  const container = document.getElementById('all-active-roles');
+  if (container) {
+    container.innerHTML = roles.map(r => `<span class="role-tag">${r}</span>`).join('') ||
+      '<span style="color:var(--text-tertiary); font-size:12px">No roles active</span>';
+  }
+  populateRunPageRoles();
+}
+
+function getActiveRoles() {
+  const presets = appConfig.search?.role_presets || {};
+  const active = Object.keys(PRESET_META).filter(k => {
+    const el = document.getElementById(`preset-${k}`);
+    return el ? el.checked : (presets.active_presets || []).includes(k);
+  });
+  const roles = [];
+  active.forEach(p => roles.push(...(presets[p] || [])));
+  roles.push(...(presets.custom || []));
+  return [...new Set(roles)];
+}
+
+function addCustomRole() {
+  const input = document.getElementById('custom-role-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const custom = appConfig.search?.role_presets?.custom || [];
+  if (!custom.includes(val)) {
+    custom.push(val);
+    if (!appConfig.search) appConfig.search = {};
+    if (!appConfig.search.role_presets) appConfig.search.role_presets = {};
+    appConfig.search.role_presets.custom = custom;
+    renderCustomRoles(custom);
+    updateActiveRoles();
+  }
+  input.value = '';
+}
+
+function removeCustomRole(role) {
+  const custom = appConfig.search?.role_presets?.custom || [];
+  const idx = custom.indexOf(role);
+  if (idx > -1) {
+    custom.splice(idx, 1);
+    renderCustomRoles(custom);
+    updateActiveRoles();
+  }
+}
+
+async function saveRoles() {
+  const activePresets = Object.keys(PRESET_META).filter(k => {
+    const el = document.getElementById(`preset-${k}`);
+    return el && el.checked;
+  });
+  const custom = appConfig.search?.role_presets?.custom || [];
+  try {
+    await fetch('/api/config/roles', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ active_presets: activePresets, custom }),
+    });
+    await loadConfig();
+    toast('Role settings saved', 'success');
+  } catch(e) {
+    toast('Failed to save roles', 'error');
+  }
+}
+
+// ================= RUN PIPELINE =================
+function populateRunPage() {
+  populateRunPageRoles();
+  renderWaterfallOrder();
+}
+
+function populateRunPageRoles() {
+  const roles = getActiveRoles();
+  const container = document.getElementById('run-active-roles');
+  if (container) {
+    container.innerHTML = roles.map(r => `<span class="role-tag">${r}</span>`).join('') ||
+      '<span style="color:var(--text-tertiary); font-size:12px">No roles configured</span>';
+  }
+}
+
+function switchInputTab(tab) {
+  document.getElementById('input-panel-text').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('input-panel-csv').style.display = tab === 'csv' ? 'block' : 'none';
+  document.getElementById('input-tab-text').style.background = tab === 'text' ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('input-tab-text').style.color = tab === 'text' ? '#fff' : 'var(--text-main)';
+  document.getElementById('input-tab-csv').style.background = tab === 'csv' ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('input-tab-csv').style.color = tab === 'csv' ? '#fff' : 'var(--text-main)';
+}
+
+function updateCompanyCount() {
+  const val = document.getElementById('run-companies')?.value || '';
+  const lines = val.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  const el = document.getElementById('company-count');
+  if (el) el.textContent = `${lines.length} compan${lines.length === 1 ? 'y' : 'ies'} parsed`;
+}
+
+async function quickRun() {
+  const raw = document.getElementById('quick-companies').value;
+  const companies = raw.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  if (!companies.length) return toast('Please enter at least one company', 'error');
+  await triggerRun({ companies });
+}
+
+async function startRun() {
+  const textPanel = document.getElementById('input-panel-text');
+  const isText = textPanel && textPanel.style.display !== 'none';
+
+  if (isText) {
+    const raw = document.getElementById('run-companies').value;
+    const companies = raw.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    if (!companies.length) return toast('Please enter at least one company', 'error');
+    await triggerRun({ companies });
+  } else {
+    const csvPath = document.getElementById('run-csv-path').value;
+    await triggerRun({ csv_path: csvPath });
+  }
+}
+
+async function triggerRun(payload) {
+  const statusRes = await fetch('/api/status').then(r => r.json());
+  if (statusRes.status?.running) return toast('Pipeline already in progress!', 'error');
+
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('quick-run-btn').disabled = true;
+  clearLog();
+  setStatus('running');
+  updateProgress(0, 0);
+  log('Initializing discovery pipeline...', 'info');
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      toast(data.error, 'error');
+      setStatus('idle');
+      document.getElementById('run-btn').disabled = false;
+      document.getElementById('quick-run-btn').disabled = false;
+    }
+  } catch(e) {
+    toast('Failed to trigger pipeline execution', 'error');
+    setStatus('idle');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('quick-run-btn').disabled = false;
+  }
+}
+
+// ================= RESULTS TABLE & SELECTION =================
+function renderResults(contacts) {
+  const tbody = document.getElementById('results-tbody');
+  filteredContacts = contacts;
+
+  if (!contacts.length) {
+    tbody.innerHTML = `<tr><td colspan="10">
+      <div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <div class="empty-text">No contacts found matching criteria.</div>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = contacts.map((c, i) => {
+    const name        = c['Name'] || 'Unknown Contact';
+    const titleText   = c['Title'] || '&mdash;';
+    const company     = c['Company'] || '&mdash;';
+    const linkedinUrl = c['LinkedIn URL'] || c['LinkedIn'] || '';
+    const workEmail   = c['Work Email'] || (!(c['Primary Email']||'').match(/@(gmail|yahoo|hotmail|outlook|icloud|protonmail|aol)\./) ? (c['Primary Email'] || c['Email'] || '') : '') || '';
+    const persEmail   = c['Personal Email'] || '';
+    const verified    = c['Email Verified'] === 'True' || c['Email Verified'] === true;
+
+    const initials = name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'HR';
+    const isChecked = selectedContacts.has(i);
+
+    const liBtn = linkedinUrl
+      ? `<a href="${linkedinUrl}" target="_blank" class="btn-linkedin">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          LinkedIn
+        </a>`
+      : '<span style="color:var(--text-tertiary); font-size:12px">&mdash;</span>';
+
+    const wEmailHtml = workEmail
+      ? `<div class="email-cell">
+          <a href="mailto:${workEmail}" class="email-link email-work" title="${workEmail}">${workEmail}</a>
+          <button class="copy-btn" onclick="copyText('${workEmail}')" title="Copy email">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          </button>
+        </div>`
+      : '<span style="color:var(--text-tertiary)">&mdash;</span>';
+
+    const pEmailHtml = persEmail
+      ? `<div class="email-cell">
+          <a href="mailto:${persEmail}" class="email-link email-pers" title="${persEmail}">${persEmail}</a>
+          <button class="copy-btn" onclick="copyText('${persEmail}')" title="Copy email">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          </button>
+        </div>`
+      : '<span style="color:var(--text-tertiary)">&mdash;</span>';
+
+    const verifiedHtml = verified
+      ? `<span class="badge-verified"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Verified</span>`
+      : `<span class="badge-unverified">Pending</span>`;
+
+    const canEmail = Boolean(workEmail || persEmail);
+    const emailActionBtn = canEmail
+      ? `<button class="btn btn-primary btn-sm" onclick="openOutreachModalForSingle(${i})">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          Email
+        </button>`
+      : `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.3">Email</button>`;
+
+    return `<tr>
+      <td>
+        <input type="checkbox" class="custom-check lead-check" ${isChecked ? 'checked' : ''} onchange="toggleSelectLead(${i}, this.checked)" />
+      </td>
+      <td style="color:var(--text-tertiary); font-size:11.5px; font-family:var(--font-mono)">${i+1}</td>
+      <td>
+        <div class="person-cell">
+          <div class="avatar-initials">${initials}</div>
+          <div class="person-name">${name}</div>
+        </div>
+      </td>
+      <td style="color:var(--text-muted); font-size:12.5px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${titleText}">${titleText}</td>
+      <td class="person-company">${company}</td>
+      <td>${liBtn}</td>
+      <td>${wEmailHtml}</td>
+      <td>${pEmailHtml}</td>
+      <td>${verifiedHtml}</td>
+      <td>${emailActionBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleSelectLead(idx, checked) {
+  if (checked) {
+    selectedContacts.add(idx);
+  } else {
+    selectedContacts.delete(idx);
+  }
+  updateSelectionBar();
+}
+
+function toggleSelectAll(checked) {
+  selectedContacts.clear();
+  if (checked) {
+    filteredContacts.forEach((_, idx) => selectedContacts.add(idx));
+  }
+  document.querySelectorAll('.lead-check').forEach(c => c.checked = checked);
+  updateSelectionBar();
+}
+
+function clearSelection() {
+  selectedContacts.clear();
+  const selectAll = document.getElementById('select-all-leads');
+  if (selectAll) selectAll.checked = false;
+  document.querySelectorAll('.lead-check').forEach(c => c.checked = false);
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  const bar = document.getElementById('selection-bar');
+  const count = selectedContacts.size;
+  if (!bar) return;
+
+  if (count > 0) {
+    bar.style.display = 'flex';
+    document.getElementById('selected-count-label').textContent = `${count} lead${count === 1 ? '' : 's'} selected`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function copyText(str) {
+  navigator.clipboard.writeText(str).then(() => {
+    toast(`Copied ${str} to clipboard`, 'success');
+  }).catch(() => {
+    toast('Could not copy to clipboard', 'error');
+  });
+}
+
+function filterResults() {
+  const q = document.getElementById('results-search')?.value.toLowerCase().trim() || '';
+  if (!q) {
+    renderResults(allContacts);
+    return;
+  }
+  const filtered = allContacts.filter(c =>
+    (c.Name || '').toLowerCase().includes(q) ||
+    (c['Work Email'] || c.Email || '').toLowerCase().includes(q) ||
+    (c['Personal Email'] || '').toLowerCase().includes(q) ||
+    (c.Company || '').toLowerCase().includes(q) ||
+    (c.Title || '').toLowerCase().includes(q) ||
+    (c['LinkedIn URL'] || c.LinkedIn || '').toLowerCase().includes(q)
+  );
+  renderResults(filtered);
+}
+
+function exportCSV() {
+  const toExport = selectedContacts.size > 0
+    ? Array.from(selectedContacts).map(idx => filteredContacts[idx]).filter(Boolean)
+    : allContacts;
+
+  if (!toExport.length) return toast('No contacts to export', 'error');
+  const headers = Object.keys(toExport[0]);
+  const rows = toExport.map(c => headers.map(h => JSON.stringify(c[h] ?? '')).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `contacts_export_${Date.now()}.csv`;
+  a.click();
+  toast(`Exported ${toExport.length} contacts to CSV`, 'success');
+}
+
+function clearResults() {
+  allContacts = [];
+  selectedContacts.clear();
+  renderResults([]);
+  updateBadge(0);
+  updateSelectionBar();
+}
+
+// ================= OUTREACH & TEMPLATES =================
+async function loadOutreachConfig() {
+  try {
+    const res = await fetch('/api/outreach/config');
+    const data = await res.json();
+    if (data.success) {
+      const p = data.profile || {};
+      const o = data.outreach || {};
+
+      const el = id => document.getElementById(id);
+      if (el('prof-name')) el('prof-name').value = p.my_name || '';
+      if (el('prof-role')) el('prof-role').value = p.target_role || '';
+      if (el('prof-email')) el('prof-email').value = p.my_email || '';
+      if (el('prof-phone')) el('prof-phone').value = p.my_phone || '';
+      userProfileLinks = p.custom_links || [];
+      if (!userProfileLinks.length) {
+        // Populate default starter links if empty
+        if (p.portfolio_url) userProfileLinks.push({ label: 'Portfolio', url: p.portfolio_url });
+        if (p.linkedin_url) userProfileLinks.push({ label: 'LinkedIn', url: p.linkedin_url });
+        if (p.github_url) userProfileLinks.push({ label: 'GitHub', url: p.github_url });
+        if (!userProfileLinks.length) {
+          userProfileLinks = [
+            { label: 'Portfolio', url: '' },
+            { label: 'LinkedIn', url: '' },
+            { label: 'GitHub', url: '' }
+          ];
+        }
+      }
+      renderProfileLinksList();
+
+      if (el('smtp-host')) el('smtp-host').value = o.smtp_host || 'smtp.gmail.com';
+      if (el('smtp-port')) el('smtp-port').value = o.smtp_port || 587;
+      if (el('smtp-user')) el('smtp-user').value = o.smtp_user || '';
+      if (el('smtp-password')) el('smtp-password').value = o.smtp_password || '';
+
+      const rStatus = el('resume-status');
+      if (rStatus) {
+        if (data.resume_exists) {
+          rStatus.innerHTML = `<span style="color:var(--emerald-text); font-weight:600">&bull; Attached: ${data.resume_filename || 'resume.pdf'}</span>`;
+        } else {
+          rStatus.textContent = 'No resume uploaded yet';
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+async function saveOutreachSettings() {
+  const el = id => document.getElementById(id)?.value || '';
+  const payload = {
+    profile: {
+      my_name: el('prof-name'),
+      target_role: el('prof-role'),
+      my_email: el('prof-email'),
+      my_phone: el('prof-phone'),
+      custom_links: getProfileLinksFromUI(),
+      portfolio_url: (getProfileLinksFromUI().find(l => l.label.toLowerCase().includes('portfolio')) || {}).url || '',
+      linkedin_url: (getProfileLinksFromUI().find(l => l.label.toLowerCase().includes('linkedin')) || {}).url || '',
+      github_url: (getProfileLinksFromUI().find(l => l.label.toLowerCase().includes('github')) || {}).url || '',
+    },
+    outreach: {
+      smtp_host: el('smtp-host'),
+      smtp_port: parseInt(el('smtp-port') || 587),
+      smtp_user: el('smtp-user'),
+      smtp_password: el('smtp-password'),
+      sender_name: el('prof-name')
+    }
+  };
+
+  try {
+    const res = await fetch('/api/outreach/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d.success) toast('Outreach settings saved!', 'success');
+  } catch(e) {
+    toast('Failed to save settings', 'error');
+  }
+}
+
+async function testSmtpConnection() {
+  toast('Testing SMTP connection...', 'info');
+  const payload = {
+    outreach: {
+      smtp_host: document.getElementById('smtp-host')?.value || 'smtp.gmail.com',
+      smtp_port: parseInt(document.getElementById('smtp-port')?.value || 587),
+      smtp_user: document.getElementById('smtp-user')?.value || '',
+      smtp_password: document.getElementById('smtp-password')?.value || '',
+    }
+  };
+
+  try {
+    const res = await fetch('/api/outreach/test-smtp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(d.message, 'success');
+    } else {
+      toast(d.message, 'error');
+    }
+  } catch(e) {
+    toast('Could not contact backend server', 'error');
+  }
+}
+
+async function uploadResumeFile() {
+  const input = document.getElementById('resume-file-input');
+  if (!input.files || !input.files[0]) return;
+
+  const formData = new FormData();
+  formData.append('resume', input.files[0]);
+
+  toast('Uploading resume PDF...', 'info');
+  try {
+    const res = await fetch('/api/outreach/upload-resume', {
+      method: 'POST',
+      body: formData
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast('Resume uploaded and attached!', 'success');
+      loadOutreachConfig();
+    } else {
+      toast(d.error || 'Upload failed', 'error');
+    }
+  } catch(e) {
+    toast('Upload error', 'error');
+  }
+}
+
+async function loadTemplates() {
+  try {
+    const res = await fetch('/api/outreach/templates');
+    const data = await res.json();
+    if (data.success && data.templates) {
+      allTemplates = data.templates;
+      renderTemplateDropdowns();
+      loadSelectedTemplate();
+    }
+  } catch(e) {}
+}
+
+function renderTemplateDropdowns() {
+  ['tpl-select', 'modal-tpl-select'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = allTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  });
+}
+
+function loadSelectedTemplate() {
+  const selId = document.getElementById('tpl-select')?.value;
+  const tpl = allTemplates.find(t => t.id === selId) || allTemplates[0];
+  if (!tpl) return;
+
+  const el = id => document.getElementById(id);
+  if (el('tpl-name')) el('tpl-name').value = tpl.name || '';
+  if (el('tpl-subject')) el('tpl-subject').value = tpl.subject || '';
+  if (el('tpl-body')) el('tpl-body').value = tpl.body || '';
+}
+
+function insertVariable(tag) {
+  const bodyEl = document.getElementById('tpl-body');
+  if (!bodyEl) return;
+  const start = bodyEl.selectionStart;
+  const end = bodyEl.selectionEnd;
+  const text = bodyEl.value;
+  bodyEl.value = text.substring(0, start) + tag + text.substring(end);
+  bodyEl.focus();
+  bodyEl.selectionStart = bodyEl.selectionEnd = start + tag.length;
+}
+
+function createNewTemplate() {
+  const newTpl = {
+    id: 'custom_' + Date.now(),
+    name: 'New Custom Template',
+    subject: 'Inquiry regarding opportunities at {{Company}} — {{My_Name}}',
+    body: 'Hi {{First_Name}},\n\nI hope you are having a great week!\n\nBest regards,\n{{My_Name}}'
+  };
+  allTemplates.push(newTpl);
+  renderTemplateDropdowns();
+  document.getElementById('tpl-select').value = newTpl.id;
+  loadSelectedTemplate();
+  toast('Created new template draft', 'info');
+}
+
+async function saveCurrentTemplate() {
+  const selId = document.getElementById('tpl-select')?.value;
+  const idx = allTemplates.findIndex(t => t.id === selId);
+  const name = document.getElementById('tpl-name')?.value || 'Template';
+  const subject = document.getElementById('tpl-subject')?.value || '';
+  const body = document.getElementById('tpl-body')?.value || '';
+
+  if (idx > -1) {
+    allTemplates[idx] = { id: selId, name, subject, body };
+  } else {
+    allTemplates.push({ id: selId || 'tpl_' + Date.now(), name, subject, body });
+  }
+
+  try {
+    const res = await fetch('/api/outreach/templates', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ templates: allTemplates })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast('Template saved!', 'success');
+      renderTemplateDropdowns();
+    }
+  } catch(e) {
+    toast('Failed to save template', 'error');
+  }
+}
+
+async function deleteCurrentTemplate() {
+  if (allTemplates.length <= 1) return toast('Must keep at least one template', 'error');
+  const selId = document.getElementById('tpl-select')?.value;
+  allTemplates = allTemplates.filter(t => t.id !== selId);
+  try {
+    await fetch('/api/outreach/templates', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ templates: allTemplates })
+    });
+    renderTemplateDropdowns();
+    loadSelectedTemplate();
+    toast('Template removed', 'info');
+  } catch(e) {}
+}
+
+// ================= OUTREACH MODALS & SEND =================
+function openOutreachModalForSingle(idx) {
+  const contact = filteredContacts[idx];
+  if (!contact) return;
+  currentModalContact = contact;
+  currentModalContactsList = [contact];
+
+  document.getElementById('modal-outreach-recipient').textContent =
+    `Sending to: ${contact.Name || 'Contact'} (${contact.Company || ''}) &bull; ${contact['Work Email'] || contact['Primary Email'] || 'No email'}`;
+
+  document.getElementById('modal-outreach').classList.add('active');
+  updateOutreachModalPreview();
+}
+
+function openOutreachModalForSelected() {
+  const list = Array.from(selectedContacts).map(idx => filteredContacts[idx]).filter(Boolean);
+  if (!list.length) return toast('No contacts selected', 'error');
+
+  currentModalContact = list[0];
+  currentModalContactsList = list;
+
+  document.getElementById('modal-outreach-recipient').textContent =
+    `Bulk dispatch to ${list.length} selected recruiter lead${list.length === 1 ? '' : 's'}`;
+
+  document.getElementById('modal-outreach').classList.add('active');
+  updateOutreachModalPreview();
+}
+
+function closeOutreachModal() {
+  document.getElementById('modal-outreach').classList.remove('active');
+  currentModalContact = null;
+  currentModalContactsList = [];
+}
+
+async function updateOutreachModalPreview() {
+  if (!currentModalContact) return;
+  const tplId = document.getElementById('modal-tpl-select')?.value;
+
+  try {
+    const res = await fetch('/api/outreach/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contact: currentModalContact,
+        template_id: tplId
+      })
+    });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById('modal-preview-subject').value = d.subject || '';
+      document.getElementById('modal-preview-body').value = d.body || '';
+    }
+  } catch(e) {}
+}
+
+async function executeOutreachSend() {
+  const tplId = document.getElementById('modal-tpl-select')?.value;
+  const attachResume = document.getElementById('modal-attach-resume')?.checked !== false;
+
+  if (!currentModalContactsList.length) return;
+
+  const btn = document.getElementById('modal-send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Queueing Dispatch...';
+
+  try {
+    const res = await fetch('/api/outreach/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contacts: currentModalContactsList,
+        template_id: tplId,
+        attach_resume: attachResume
+      })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(d.message, 'success');
+      closeOutreachModal();
+      clearSelection();
+    } else {
+      toast(d.error || 'Failed to dispatch', 'error');
+    }
+  } catch(e) {
+    toast('Error connecting to backend', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Outreach Now';
+  }
+}
+
+// ================= OUTBOX HISTORY =================
+async function loadOutboxHistory() {
+  try {
+    const res = await fetch('/api/outreach/outbox');
+    const data = await res.json();
+    const tbody = document.getElementById('outbox-tbody');
+    const badge = document.getElementById('outbox-badge');
+    const statOutbox = document.getElementById('stat-outbox');
+
+    if (!data.success || !data.outbox) return;
+
+    if (badge) {
+      badge.textContent = data.count || 0;
+      badge.style.display = data.count > 0 ? 'inline-block' : 'none';
+    }
+    if (statOutbox) statOutbox.textContent = data.count || 0;
+
+    if (!data.outbox.length) {
+      tbody.innerHTML = `<tr><td colspan="7">
+        <div class="empty-state"><div class="empty-text">No outreach emails dispatched yet.</div></div>
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.outbox.map((m, i) => {
+      const isSent = m.status === 'SENT';
+      const statusBadge = isSent
+        ? `<span class="chip chip-green">Sent</span>`
+        : `<span class="chip chip-red" title="${m.error || 'Error'}">Failed</span>`;
+
+      return `<tr>
+        <td style="color:var(--text-tertiary); font-size:11.5px; font-family:var(--font-mono)">${i+1}</td>
+        <td style="font-weight:600; color:var(--text-main)">${m.recipient_name || 'Contact'}</td>
+        <td>${m.company || '&mdash;'}</td>
+        <td style="font-family:var(--font-mono); font-size:12px; color:var(--accent-text)">${m.recipient_email}</td>
+        <td style="max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${m.subject}">${m.subject}</td>
+        <td style="font-size:11.5px; color:var(--text-tertiary)">${m.date_str || ''}</td>
+        <td>${statusBadge}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+// ================= GOOGLE SHEETS SYNC =================
+function openSheetsModal() {
+  document.getElementById('modal-sheets').classList.add('active');
+  populateSheetsModalConfig();
+}
+
+function closeSheetsModal() {
+  document.getElementById('modal-sheets').classList.remove('active');
+}
+
+function populateSheetsModalConfig() {
+  const g = appConfig.output?.google_sheets || {};
+  const el = id => document.getElementById(id);
+  if (el('sheets-webhook-url')) el('sheets-webhook-url').value = g.webhook_url || '';
+  if (el('sheets-spreadsheet-id')) el('sheets-spreadsheet-id').value = g.sheet_id || '';
+}
+
+async function saveSheetsConfig() {
+  const webhook = document.getElementById('sheets-webhook-url')?.value || '';
+  const sheetId = document.getElementById('sheets-spreadsheet-id')?.value || '';
+
+  try {
+    const res = await fetch('/api/sync/google-sheets/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        webhook_url: webhook,
+        sheet_id: sheetId,
+        enabled: Boolean(webhook || sheetId)
+      })
+    });
+    const d = await res.json();
+    if (d.success) toast('Google Sheets configuration saved!', 'success');
+  } catch(e) {
+    toast('Failed to save Google Sheets settings', 'error');
+  }
+}
+
+async function syncAllToSheets() {
+  await saveSheetsConfig();
+  const btn = document.getElementById('sheets-sync-btn');
+  btn.disabled = true;
+  btn.textContent = 'Syncing Rows...';
+
+  try {
+    const res = await fetch('/api/sync/google-sheets', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ contacts: allContacts })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(d.message, 'success');
+      closeSheetsModal();
+    } else {
+      toast(d.message || d.error || 'Sync failed', 'error');
+    }
+  } catch(e) {
+    toast('Sync error', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sync All Leads to Sheet';
+  }
+}
+
+async function syncSelectedToSheets() {
+  const list = Array.from(selectedContacts).map(idx => filteredContacts[idx]).filter(Boolean);
+  if (!list.length) return toast('No contacts selected', 'error');
+
+  toast(`Syncing ${list.length} selected leads to Google Sheets...`, 'info');
+  try {
+    const res = await fetch('/api/sync/google-sheets', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ contacts: list })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(d.message, 'success');
+      clearSelection();
+    } else {
+      toast(d.message || d.error || 'Sync failed. Please configure Sheet in Google Sheets modal.', 'error');
+    }
+  } catch(e) {
+    toast('Sync connection error', 'error');
+  }
+}
+
+function copyAppsScriptCode() {
+  const code = `function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["Name", "Title", "Company", "LinkedIn", "Work Email", "Personal Email", "Verified", "Date"]);
+  }
+  var now = new Date().toLocaleString();
+  data.contacts.forEach(function(c) {
+    sheet.appendRow([c.Name, c.Title, c.Company, c["LinkedIn URL"]||"", c["Work Email"]||c.Email||"", c["Personal Email"]||"", c["Email Verified"]||"", now]);
+  });
+  return ContentService.createTextOutput(JSON.stringify({status: "ok"})).setMimeType(ContentService.MimeType.JSON);
+}`;
+  navigator.clipboard.writeText(code).then(() => {
+    toast('Copied Google Apps Script code to clipboard!', 'success');
+  });
+}
+
+// ================= SCHEDULER =================
+function populateSchedule() {
+  const s = appConfig.schedule || {};
+  const el = id => document.getElementById(id);
+  if (el('sched-enabled')) el('sched-enabled').checked = s.enabled || false;
+  if (el('sched-freq')) el('sched-freq').value = s.frequency || 'weekly';
+  if (el('sched-time')) el('sched-time').value = s.time || '09:00';
+  if (el('sched-day-week')) el('sched-day-week').value = (s.day_of_week || 'monday').charAt(0).toUpperCase() + (s.day_of_week || 'monday').slice(1);
+  if (el('sched-day-month')) el('sched-day-month').value = s.day_of_month || 1;
+  if (el('sched-input-file')) el('sched-input-file').value = s.input_file || 'input/companies.csv';
+  updateScheduleUI();
+}
+
+function updateScheduleUI() {
+  const freq = document.getElementById('sched-freq')?.value;
+  document.getElementById('sched-day-week-wrap').style.display = freq === 'weekly' ? 'block' : 'none';
+  document.getElementById('sched-day-month-wrap').style.display = freq === 'monthly' ? 'block' : 'none';
+}
+
+async function saveSchedule() {
+  const patch = {
+    schedule: {
+      enabled: document.getElementById('sched-enabled')?.checked || false,
+      frequency: document.getElementById('sched-freq')?.value || 'weekly',
+      time: document.getElementById('sched-time')?.value || '09:00',
+      day_of_week: (document.getElementById('sched-day-week')?.value || 'Monday').toLowerCase(),
+      day_of_month: parseInt(document.getElementById('sched-day-month')?.value || 1),
+      input_file: document.getElementById('sched-input-file')?.value || 'input/companies.csv',
+    }
+  };
+  await saveConfig(patch);
+}
+
+async function triggerNow() {
+  try {
+    await fetch('/api/schedule/run-now', { method: 'POST' });
+    toast('Immediate discovery run triggered!', 'success');
+  } catch(e) {
+    toast('Failed to trigger job execution', 'error');
+  }
+}
+
+// ================= SETTINGS =================
+function populateSettings() {
+  const o = appConfig.output || {};
+  const p = appConfig.pipeline || {};
+  const id = s => document.getElementById(s);
+  if (id('out-format')) id('out-format').value = o.format || 'csv';
+  if (id('out-dir')) id('out-dir').value = o.directory || 'output';
+  if (id('out-filename')) id('out-filename').value = o.filename || 'contacts';
+  if (id('out-unverified')) id('out-unverified').checked = o.include_unverified || false;
+  if (id('set-workers')) id('set-workers').value = p.max_workers || 3;
+  if (id('set-delay')) id('set-delay').value = p.request_delay || 1.5;
+  if (id('set-confidence')) {
+    id('set-confidence').value = p.min_confidence || 0.5;
+    id('set-confidence-val').textContent = ((p.min_confidence || 0.5) * 100).toFixed(0) + '%';
+  }
+  if (id('set-verify')) id('set-verify').checked = p.verify_emails !== false;
+  if (id('set-stop-first')) id('set-stop-first').checked = p.stop_on_first_result || false;
+}
+
+async function saveSettings() {
+  const id = s => document.getElementById(s);
+  const patch = {
+    output: {
+      format: id('out-format')?.value || 'csv',
+      directory: id('out-dir')?.value || 'output',
+      filename: id('out-filename')?.value || 'contacts',
+      include_unverified: id('out-unverified')?.checked || false,
+    },
+    pipeline: {
+      max_workers: parseInt(id('set-workers')?.value || 3),
+      request_delay: parseFloat(id('set-delay')?.value || 1.5),
+      min_confidence: parseFloat(id('set-confidence')?.value || 0.5),
+      verify_emails: id('set-verify')?.checked !== false,
+      stop_on_first_result: id('set-stop-first')?.checked || false,
+    }
+  };
+  await saveConfig(patch);
+}
+
+// ================= OUTPUT FILES =================
+async function loadOutputFiles() {
+  try {
+    const res = await fetch('/api/files/output');
+    const data = await res.json();
+    const container = document.getElementById('output-files-list');
+    if (!container) return;
+    if (!data.files?.length) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-text">No output files yet</div></div>';
+      return;
+    }
+    container.innerHTML = data.files.map(f => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-surface); border-radius:var(--radius-sm); margin-bottom:8px; border:1px solid var(--border-subtle)">
+        <div>
+          <div style="font-size:13px; font-weight:600; color:var(--text-main)">${f.name}</div>
+          <div style="font-size:11.5px; color:var(--text-tertiary)">${formatBytes(f.size)} &bull; ${new Date(f.modified*1000).toLocaleString()}</div>
+        </div>
+        <span class="chip ${f.name.endsWith('.csv') ? 'chip-green' : 'chip-blue'}">${f.name.split('.').pop().toUpperCase()}</span>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+// ================= PROGRESS & LOGGING =================
+function updateProgress(current, total) {
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  const label = total > 0 ? `${current} / ${total} companies` : 'Processing...';
+
+  ['progress-bar', 'run-progress-bar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.width = pct + '%';
+  });
+  ['progress-label', 'run-progress-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+  ['progress-pct', 'run-progress-pct'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = pct + '%';
+  });
+}
+
+function setStatus(status) {
+  const dot = document.getElementById('sidebar-status-dot');
+  const text = document.getElementById('sidebar-status-text');
+  const chip = document.getElementById('pipeline-status-chip');
+  const sub = document.getElementById('progress-subtitle');
+
+  const states = {
+    idle:    { dot: 'idle',    text: 'Engine Ready',  chip: 'Idle',      chipCls: 'chip-gray',   sub: 'Idle &mdash; waiting for next run' },
+    running: { dot: 'running', text: 'Searching...', chip: 'Searching', chipCls: 'chip-blue',   sub: 'Discovery pipeline active' },
+    done:    { dot: 'idle',    text: 'Completed',     chip: 'Completed', chipCls: 'chip-green',  sub: 'Last search run completed' },
+  };
+  const s = states[status] || states.idle;
+  if (dot) dot.className = `status-dot ${s.dot}`;
+  if (text) text.textContent = s.text;
+  if (chip) { chip.textContent = s.chip; chip.className = `chip ${s.chipCls}`; }
+  if (sub) sub.innerHTML = s.sub;
+}
+
+function log(msg, type = 'info') {
+  const timestamp = new Date().toLocaleTimeString();
+  const entry = `<span class="log-entry ${type}">[${timestamp}] ${msg}</span>\n`;
+  ['pipeline-log', 'run-log'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.innerHTML += entry; el.scrollTop = el.scrollHeight; }
+  });
+}
+
+function clearLog() {
+  ['pipeline-log', 'run-log'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+}
+
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  el.innerHTML = `<span style="font-weight:700">${icon}</span> ${msg}`;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(10px)';
+    el.style.transition = '0.3s';
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+function updateBadge(count) {
+  const badge = document.getElementById('results-badge');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+  const stat = document.getElementById('stat-total');
+  if (stat) stat.textContent = count || '0';
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function refreshData() {
+  loadConfig();
+  loadOutputFiles();
+  fetch('/api/results').then(r => r.json()).then(d => {
+    if (d.contacts?.length) {
+      allContacts = d.contacts;
+      renderResults(allContacts);
+      updateBadge(allContacts.length);
+    }
+  });
+  loadOutboxHistory();
+  toast('Data refreshed', 'success');
+}
+
+// ================= DYNAMIC PROFILE LINKS =================
+let userProfileLinks = [];
+
+function renderProfileLinksList() {
+  const container = document.getElementById('profile-links-list');
+  if (!container) return;
+
+  if (!userProfileLinks.length) {
+    container.innerHTML = `<div style="text-align:center; padding:12px; font-size:12px; color:var(--text-tertiary); background:var(--bg-surface); border:1px dashed var(--border-default); border-radius:var(--radius-sm)">
+      No links added yet. Click <strong>+ Add New Link</strong> above to add one.
+    </div>`;
+    renderDynamicVarPills();
+    return;
+  }
+
+  container.innerHTML = userProfileLinks.map((item, idx) => `
+    <div style="display:flex; gap:8px; align-items:center; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:6px 10px; border-radius:var(--radius-sm)">
+      <div style="width:130px; flex-shrink:0">
+        <input type="text" class="form-input" style="padding:5px 8px; font-size:12px; font-weight:600"
+          value="${escapeHtml(item.label || '')}" placeholder="e.g. LinkedIn"
+          oninput="updateLinkItem(${idx}, 'label', this.value)" />
+      </div>
+      <div style="flex:1">
+        <input type="url" class="form-input" style="padding:5px 8px; font-size:12px; font-family:var(--font-mono)"
+          value="${escapeHtml(item.url || '')}" placeholder="https://..."
+          oninput="updateLinkItem(${idx}, 'url', this.value)" />
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="removeProfileLink(${idx})"
+        style="padding:4px 6px; color:var(--text-tertiary); flex-shrink:0" title="Remove link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  renderDynamicVarPills();
+}
+
+function addNewProfileLink() {
+  userProfileLinks.push({ label: '', url: '' });
+  renderProfileLinksList();
+  // Focus the newly added link label
+  const inputs = document.querySelectorAll('#profile-links-list input');
+  if (inputs.length >= 2) {
+    inputs[inputs.length - 2].focus();
+  }
+}
+
+function updateLinkItem(idx, key, value) {
+  if (userProfileLinks[idx]) {
+    userProfileLinks[idx][key] = value;
+    renderDynamicVarPills();
+  }
+}
+
+function removeProfileLink(idx) {
+  userProfileLinks.splice(idx, 1);
+  renderProfileLinksList();
+}
+
+function getProfileLinksFromUI() {
+  return userProfileLinks.filter(l => l.label.trim() || l.url.trim());
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderDynamicVarPills() {
+  const container = document.getElementById('var-pills-container');
+  if (!container) return;
+
+  let pills = `
+    <span class="var-pill" onclick="insertVariable('{{First_Name}}')">+ First_Name</span>
+    <span class="var-pill" onclick="insertVariable('{{Company}}')">+ Company</span>
+    <span class="var-pill" onclick="insertVariable('{{Role}}')">+ Role</span>
+    <span class="var-pill" style="color:var(--emerald-text); border-color:rgba(16,185,129,0.3)" onclick="insertVariable('{{All_Links}}')" title="Inserts clean bulleted list of all active links">+ All_Links</span>
+  `;
+
+  userProfileLinks.forEach(item => {
+    const lbl = item.label.trim();
+    if (lbl) {
+      const cleanKey = lbl.replace(/[^A-Za-z0-9_]/g, '_');
+      pills += `<span class="var-pill" onclick="insertVariable('{{${cleanKey}_URL}}')">+ ${cleanKey}</span>`;
+    }
+  });
+
+  pills += `
+    <span class="var-pill" onclick="insertVariable('{{My_Name}}')">+ My_Name</span>
+    <span class="var-pill" onclick="insertVariable('{{My_Email}}')">+ My_Email</span>
+    <span class="var-pill" onclick="insertVariable('{{My_Phone}}')">+ My_Phone</span>
+  `;
+
+  container.innerHTML = pills;
+}
+
+
+// ================= GOOGLE OAUTH 2.0 UI LOGIC =================
+function switchAuthTab(tab) {
+  const isOAuth = tab === 'oauth';
+  document.getElementById('auth-panel-oauth').style.display = isOAuth ? 'block' : 'none';
+  document.getElementById('auth-panel-smtp').style.display = isOAuth ? 'none' : 'block';
+
+  document.getElementById('auth-tab-oauth').style.background = isOAuth ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('auth-tab-oauth').style.color = isOAuth ? '#fff' : 'var(--text-main)';
+  document.getElementById('auth-tab-smtp').style.background = isOAuth ? 'var(--bg-card)' : 'var(--accent)';
+  document.getElementById('auth-tab-smtp').style.color = isOAuth ? 'var(--text-main)' : '#fff';
+}
+
+async function checkGoogleAuthStatus() {
+  try {
+    const res = await fetch('/api/auth/google/status');
+    const data = await res.json();
+    if (!data.success) return;
+
+    const el = id => document.getElementById(id);
+    const chip = el('google-status-chip');
+    const sub = el('google-status-sub');
+    const btnConnect = el('btn-connect-google');
+    const btnDisconnect = el('btn-disconnect-google');
+
+    if (data.client_id && el('google-client-id')) {
+      el('google-client-id').value = data.client_id;
+    }
+
+    if (data.authenticated) {
+      if (chip) { chip.textContent = 'Active (OAuth 2.0)'; chip.className = 'chip chip-green'; }
+      if (sub) { sub.innerHTML = `<span style="color:var(--emerald-text); font-weight:600">&bull; Connected as ${data.email}</span>`; }
+      if (btnConnect) { btnConnect.style.display = 'none'; }
+      if (btnDisconnect) { btnDisconnect.style.display = 'inline-flex'; }
+      switchAuthTab('oauth');
+    } else {
+      if (chip) { chip.textContent = 'Not Connected'; chip.className = 'chip chip-gray'; }
+      if (sub) { sub.textContent = 'No Google account connected'; }
+      if (btnConnect) { btnConnect.style.display = 'inline-flex'; }
+      if (btnDisconnect) { btnDisconnect.style.display = 'none'; }
+    }
+  } catch(e) {}
+}
+
+async function connectGoogleOAuth() {
+  const cId = document.getElementById('google-client-id')?.value.trim();
+  const cSecret = document.getElementById('google-client-secret')?.value.trim();
+
+  toast('Initiating Google OAuth...', 'info');
+  try {
+    const res = await fetch('/api/auth/google/login-url', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ client_id: cId, client_secret: cSecret })
+    });
+    const data = await res.json();
+    if (data.success && data.auth_url) {
+      window.location.href = data.auth_url;
+    } else {
+      toast(data.error || 'Failed to generate OAuth URL', 'error');
+    }
+  } catch(e) {
+    toast('Error connecting to backend', 'error');
+  }
+}
+
+async function disconnectGoogleOAuth() {
+  try {
+    const res = await fetch('/api/auth/google/revoke', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      toast('Google account disconnected', 'info');
+      checkGoogleAuthStatus();
+    }
+  } catch(e) {
+    toast('Failed to disconnect', 'error');
+  }
+}
+
+async function uploadClientSecretJson() {
+  const input = document.getElementById('client-secret-file');
+  if (!input.files || !input.files[0]) return;
+
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+
+  try {
+    const res = await fetch('/api/auth/google/upload-credentials', {
+      method: 'POST',
+      body: formData
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast('Google credentials loaded successfully!', 'success');
+      if (d.client_id && document.getElementById('google-client-id')) {
+        document.getElementById('google-client-id').value = d.client_id;
+      }
+    } else {
+      toast(d.error || 'Upload error', 'error');
+    }
+  } catch(e) {
+    toast('Failed to upload credentials file', 'error');
+  }
+}
+
+</script>
+</body>
+</html>

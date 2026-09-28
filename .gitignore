@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Secrets & OAuth tokens
+.env
+.env.*
+*.env
+client_secret*.json
+credentials.json
+google_token.json
+token.json
+config/google_token.json
+
+# User uploads & generated output
+uploads/*
+!uploads/.gitkeep
+output/*
+!output/.gitkeep
+
+# Logs & temp
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,231 @@
+tools:
+  apollo_io:
+    enabled: true
+    api_key: YOUR_APOLLO_API_KEY
+    daily_limit: 50
+    credits_remaining: 50
+  hunter_io:
+    enabled: false
+    api_key: ''
+    monthly_limit: 25
+    credits_remaining: 25
+  signalhire:
+    enabled: false
+    api_key: ''
+    daily_limit: 5
+    credits_remaining: 5
+  snov_io:
+    enabled: false
+    client_id: ''
+    client_secret: ''
+    daily_limit: 50
+    credits_remaining: 50
+  rocketreach:
+    enabled: false
+    api_key: ''
+    monthly_limit: 5
+    credits_remaining: 5
+  contactout:
+    enabled: false
+    api_key: ''
+    monthly_limit: 40
+    credits_remaining: 40
+  free_tools:
+    enabled: true
+    use_smtp_verify: true
+    use_pattern_guess: true
+    use_duckduckgo: true
+    use_google_search: false
+    use_linkedin_scrape: false
+search:
+  role_presets:
+    hr_team:
+    - HR Manager
+    - HR Director
+    - HR Business Partner
+    - Human Resources
+    - Head of HR
+    recruiters:
+    - Recruiter
+    - Senior Recruiter
+    - Technical Recruiter
+    - Talent Acquisition Manager
+    - Talent Acquisition Specialist
+    - Talent Acquisition Lead
+    people_ops:
+    - People Operations
+    - People Partner
+    - VP People
+    - Chief People Officer
+    engineering_leads:
+    - Engineering Manager
+    - VP Engineering
+    - CTO
+    - Head of Engineering
+    custom: []
+  active_presets:
+  - hr_team
+  - recruiters
+  max_per_company: 5
+  country_filter: ''
+pipeline:
+  waterfall_order:
+  - apollo_io
+  - hunter_io
+  - signalhire
+  - snov_io
+  - rocketreach
+  - contactout
+  - free_tools
+  stop_on_first_result: false
+  verify_emails: true
+  min_confidence: 0.5
+  request_delay: 1.5
+  max_workers: 3
+schedule:
+  enabled: false
+  frequency: weekly
+  time: 09:00
+  day_of_week: monday
+  day_of_month: 1
+  input_file: input/companies.csv
+output:
+  format: csv
+  directory: output
+  filename: contacts
+  include_unverified: false
+  include_low_confidence: false
+  google_sheets:
+    enabled: false
+    sheet_id: ''
+    credentials_file: google_credentials.json
+    webhook_url: ''
+profile:
+  my_name: Vishal
+  my_email: ''
+  my_phone: ''
+  portfolio_url: https://vishal.dev
+  target_role: Software Engineer
+  linkedin_url: https://linkedin.com/in/vishal
+  github_url: https://github.com/vishal
+  calendly_url: https://calendly.com/vishal/15min
+  other_url: https://substack.com/@vishal
+  other_url_label: Tech Blog
+  custom_links: []
+outreach:
+  sender_name: ''
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  smtp_user: ''
+  smtp_password: ''
+  use_ssl: false
+  daily_limit: 30
+  delay_seconds_min: 30
+  delay_seconds_max: 60
+  resume_path: uploads/resume.pdf
+  templates:
+  - id: recruiter_application
+    name: Job Application to Recruiter / TA Lead
+    subject: 'Application: {{Role}} role at {{Company}} — {{My_Name}}'
+    body: 'Hi {{First_Name}},
+
+
+      I hope your week is off to a great start!
+
+
+      I noticed you lead recruiting and talent acquisition at {{Company}}. I''m reaching
+      out because I am very interested in {{Role}} opportunities on your team.
+
+
+      A quick summary of what I bring:
+
+      • Extensive experience in software development, modern architectures, and product
+      engineering.
+
+      • Proven background delivering scalable features and collaborating across cross-functional
+      teams.
+
+
+      I have attached my resume for your review. You can also explore my projects
+      and background here:
+
+      {{All_Links}}
+
+
+      Would you have 5-10 minutes for a brief introductory call, or could you point
+      me to the hiring manager for this role?
+
+
+      Thank you for your time and consideration!
+
+
+      Best regards,
+
+      {{My_Name}}
+
+      {{My_Phone}}
+
+      {{My_Email}}'
+  - id: hiring_manager_inquiry
+    name: Direct Outreach to Engineering / Department Lead
+    subject: Quick inquiry regarding {{Role}} opportunities at {{Company}}
+    body: 'Hi {{First_Name}},
+
+
+      I came across your profile while following the impressive work {{Company}} is
+      doing.
+
+
+      Given your leadership as {{Title}}, I wanted to reach out directly to express
+      my strong interest in joining your team as a {{Role}}.
+
+
+      Key highlights of my background:
+
+      • Strong track record in building high-quality, resilient systems.
+
+      • Passionate about solving complex product problems and moving fast.
+
+
+      I''ve attached my resume and would welcome the opportunity to connect for a
+      quick 10-minute chat to discuss how I could contribute to {{Company}}''s goals.
+
+
+      My profiles & work:
+
+      • GitHub: {{GitHub_URL}}
+
+      • Portfolio: {{Portfolio_URL}}
+
+      • LinkedIn: {{LinkedIn_URL}}
+
+
+      Best regards,
+
+      {{My_Name}}
+
+      {{My_Email}}
+
+      {{My_Phone}}'
+  - id: follow_up
+    name: Polite Follow-up (1 Week Later)
+    subject: 'Re: Application: {{Role}} role at {{Company}} — {{My_Name}}'
+    body: 'Hi {{First_Name}},
+
+
+      I hope you''re having a productive week!
+
+
+      I wanted to quickly follow up on my note from last week regarding the {{Role}}
+      opportunity at {{Company}}.
+
+
+      I remain very excited about the mission and would love to speak if you are still
+      reviewing candidates. My resume is attached for quick reference.
+
+
+      Thanks again for your time,
+
+      {{My_Name}}
+
+      {{LinkedIn_URL}}'
