@@ -134,7 +134,24 @@ def render_template(
 
     all_links = build_all_links_block(profile)
 
+    recruiter_email = contact.get("Work Email") or contact.get("Primary Email") or contact.get("email") or ""
+    recruiter_linkedin = contact.get("LinkedIn") or contact.get("linkedin_url") or ""
+    clean_co = re.sub(r'[^A-Za-z0-9]', '', company).upper()[:8] or "JOB"
+    ref_id = f"REF-{clean_co}-{abs(hash(full_name or company)) % 10000:04d}"
+
     mapping = {
+        "{{Recruiter_Name}}": full_name or "Hiring Team",
+        "{{recruiter_name}}": full_name or "Hiring Team",
+        "{{Recruiter_Title}}": title or "Talent Acquisition / HR",
+        "{{recruiter_title}}": title or "Talent Acquisition / HR",
+        "{{Recruiter_Email}}": recruiter_email,
+        "{{recruiter_email}}": recruiter_email,
+        "{{Recruiter_LinkedIn}}": recruiter_linkedin,
+        "{{recruiter_linkedin}}": recruiter_linkedin,
+        "{{Tracking_Ref}}": ref_id,
+        "{{tracking_ref}}": ref_id,
+        "{{Reference_ID}}": ref_id,
+        "{{reference_id}}": ref_id,
         "{{First_Name}}": first_name or "there",
         "{{first_name}}": first_name or "there",
         "{{Name}}": full_name or "there",

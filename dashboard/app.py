@@ -530,8 +530,10 @@ def preview_outreach():
         if not tpl:
             return jsonify({"success": False, "error": "Template not found"}), 404
 
-        subject = render_template(tpl.get("subject", ""), contact, profile)
-        body = render_template(tpl.get("body", ""), contact, profile)
+        subj_raw = data.get("custom_subject") or tpl.get("subject", "")
+        body_raw = data.get("custom_body") or tpl.get("body", "")
+        subject = render_template(subj_raw, contact, profile)
+        body = render_template(body_raw, contact, profile)
         return jsonify({"success": True, "subject": subject, "body": body})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

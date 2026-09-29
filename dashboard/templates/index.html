@@ -1605,9 +1605,50 @@
               <input type="text" class="form-input" id="tpl-name" placeholder="Template Name" />
             </div>
 
+            <!-- TARGET RECRUITER REFERENCE & TEST TRACKER -->
+            <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px; margin-bottom:14px">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+                <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); display:flex; align-items:center; gap:5px">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Recruiter Reference & Tracking Target
+                </span>
+                <span class="chip chip-blue" id="tpl-active-ref-chip">Live Tracking Active</span>
+              </div>
+
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                <div style="flex:1; min-width:240px">
+                  <select class="form-select" id="tpl-recruiter-sample-select" onchange="onSampleRecruiterChanged(this.value)" style="font-size:12px; padding:6px 10px">
+                    <!-- Populated dynamically with discovered recruiters -->
+                  </select>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTplLivePreview()" id="tpl-preview-toggle-btn" style="white-space:nowrap">
+                  Toggle Live Preview
+                </button>
+              </div>
+
+              <!-- Recruiter Reference Metadata Badges -->
+              <div id="tpl-recruiter-metadata-bar" style="margin-top:10px; display:flex; gap:12px; font-size:11.5px; color:var(--text-muted); flex-wrap:wrap; border-top:1px solid var(--border-subtle); padding-top:8px">
+                <div><span style="color:var(--text-muted)">Recruiter:</span> <strong id="ref-recruiter-name" style="color:var(--text-main)">Select lead</strong></div>
+                <div><span style="color:var(--text-muted)">Company:</span> <strong id="ref-recruiter-company" style="color:var(--text-main)">&mdash;</strong></div>
+                <div><span style="color:var(--text-muted)">Title:</span> <strong id="ref-recruiter-title" style="color:var(--text-main)">&mdash;</strong></div>
+                <div><span style="color:var(--text-muted)">Email:</span> <span id="ref-recruiter-email" style="color:var(--accent-text); font-family:monospace">&mdash;</span></div>
+                <div><span style="color:var(--text-muted)">Tracking Ref:</span> <span id="ref-recruiter-tracking" style="color:var(--emerald); font-family:monospace">REF-PENDING</span></div>
+              </div>
+
+              <!-- Live Rendered Preview Box (Collapsible) -->
+              <div id="tpl-live-preview-box" style="display:none; margin-top:10px; padding:10px 12px; background:var(--bg-subtle); border-radius:var(--radius-sm); border:1px dashed var(--accent)">
+                <div style="font-size:11px; font-weight:700; color:var(--accent-text); margin-bottom:4px; display:flex; justify-content:space-between">
+                  <span>LIVE PERSONALIZED PREVIEW:</span>
+                  <span id="preview-target-sub" style="font-weight:normal; color:var(--text-muted)"></span>
+                </div>
+                <div id="live-preview-subject" style="font-weight:600; font-size:12.5px; margin-bottom:6px; color:var(--text-main)"></div>
+                <div id="live-preview-body" style="font-family:monospace; font-size:11.5px; white-space:pre-wrap; color:var(--text-main); line-height:1.5"></div>
+              </div>
+            </div>
+
             <div class="form-group">
               <label class="form-label">Subject Line</label>
-              <input type="text" class="form-input" id="tpl-subject" placeholder="Application: {{Role}} &mdash; {{My_Name}}" />
+              <input type="text" class="form-input" id="tpl-subject" oninput="updateLiveTplPreviewIfOpen()" placeholder="Application: {{Role}} role at {{Company}} &mdash; {{My_Name}}" />
             </div>
 
             <div style="margin-bottom:8px">
@@ -1619,7 +1660,7 @@
 
             <div class="form-group">
               <label class="form-label">Email Message Body</label>
-              <textarea class="form-textarea" id="tpl-body" rows="12" placeholder="Hi {{First_Name}}, ..."></textarea>
+              <textarea class="form-textarea" id="tpl-body" rows="12" oninput="updateLiveTplPreviewIfOpen()" placeholder="Hi {{First_Name}}, ..."></textarea>
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -2241,6 +2282,113 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkGoogleAuthStatus();
 });
 
+
+// ================= RECRUITER REFERENCE & LIVE PREVIEW =================
+let activeSampleContact = null;
+let isTplLivePreviewOpen = false;
+
+function populateSampleRecruiterDropdown() {
+  const select = document.getElementById('tpl-recruiter-sample-select');
+  if (!select) return;
+  select.innerHTML = '';
+
+  const pool = (allContacts.length ? allContacts : filteredContacts);
+  if (!pool.length) {
+    const opt = document.createElement('option');
+    opt.value = "";
+    opt.textContent = "No recruiters discovered yet (Run a search or test first)";
+    select.appendChild(opt);
+    return;
+  }
+
+  pool.forEach((c, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    const name = c.Name || 'Recruiter';
+    const comp = c.Company || 'Company';
+    const email = c['Work Email'] || c['Primary Email'] || c.email || 'No email';
+    const title = c.Title || c['Designation / Role'] || 'HR / TA';
+    opt.textContent = `${name} (${comp}) — ${title} [${email}]`;
+    select.appendChild(opt);
+  });
+
+  if (!activeSampleContact && pool.length) {
+    activeSampleContact = pool[0];
+    onSampleRecruiterChanged(0);
+  }
+}
+
+function onSampleRecruiterChanged(idx) {
+  const pool = (allContacts.length ? allContacts : filteredContacts);
+  if (!pool.length || idx === "") return;
+  const c = pool[parseInt(idx, 10)] || pool[0];
+  activeSampleContact = c;
+
+  const name = c.Name || 'Hiring Lead';
+  const comp = c.Company || 'Target Co';
+  const title = c.Title || c['Designation / Role'] || 'Talent Acquisition';
+  const email = c['Work Email'] || c['Primary Email'] || c.email || 'No email found';
+  const cleanCo = comp.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8) || 'JOB';
+  const trackingRef = `REF-${cleanCo}-${Math.abs(hashStr(name + comp)) % 10000}`;
+
+  const el = id => document.getElementById(id);
+  if (el('ref-recruiter-name')) el('ref-recruiter-name').textContent = name;
+  if (el('ref-recruiter-company')) el('ref-recruiter-company').textContent = comp;
+  if (el('ref-recruiter-title')) el('ref-recruiter-title').textContent = title;
+  if (el('ref-recruiter-email')) {
+    el('ref-recruiter-email').textContent = email;
+    el('ref-recruiter-email').style.color = email.includes('@') ? 'var(--accent-text)' : 'var(--danger)';
+  }
+  if (el('ref-recruiter-tracking')) el('ref-recruiter-tracking').textContent = trackingRef;
+
+  updateLiveTplPreviewIfOpen();
+}
+
+function hashStr(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+function toggleTplLivePreview() {
+  isTplLivePreviewOpen = !isTplLivePreviewOpen;
+  const box = document.getElementById('tpl-live-preview-box');
+  const btn = document.getElementById('tpl-preview-toggle-btn');
+  if (box) box.style.display = isTplLivePreviewOpen ? 'block' : 'none';
+  if (btn) btn.textContent = isTplLivePreviewOpen ? 'Hide Live Preview' : 'Show Live Preview';
+  if (isTplLivePreviewOpen) updateLiveTplPreviewIfOpen();
+}
+
+async function updateLiveTplPreviewIfOpen() {
+  if (!isTplLivePreviewOpen || !activeSampleContact) return;
+  const tplId = document.getElementById('tpl-select')?.value;
+  const customSubject = document.getElementById('tpl-subject')?.value;
+  const customBody = document.getElementById('tpl-body')?.value;
+
+  try {
+    const res = await fetch('/api/outreach/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contact: activeSampleContact,
+        template_id: tplId,
+        custom_subject: customSubject,
+        custom_body: customBody
+      })
+    });
+    const d = await res.json();
+    if (d.success) {
+      const el = id => document.getElementById(id);
+      if (el('live-preview-subject')) el('live-preview-subject').textContent = 'Subject: ' + (d.subject || customSubject);
+      if (el('live-preview-body')) el('live-preview-body').textContent = d.body || customBody;
+      if (el('preview-target-sub')) el('preview-target-sub').textContent = `Rendered for ${activeSampleContact.Name} (${activeSampleContact.Company})`;
+    }
+  } catch(e) {}
+}
+
 async function loadExistingResults() {
   try {
     const res = await fetch('/api/results');
@@ -2248,6 +2396,7 @@ async function loadExistingResults() {
     if (data.success && data.contacts && data.contacts.length > 0) {
       allContacts = data.contacts;
       renderResults(allContacts);
+      populateSampleRecruiterDropdown();
       updateBadge(allContacts.length);
     }
   } catch(e) {
@@ -2281,6 +2430,7 @@ function handlePipelineEvent(payload) {
     if (data.contacts) {
       allContacts = data.contacts;
       renderResults(allContacts);
+      populateSampleRecruiterDropdown();
       updateBadge(allContacts.length);
     }
     log(`Discovery complete &mdash; ${allContacts.length} total contacts identified`, 'success');
@@ -3776,6 +3926,9 @@ function renderDynamicVarPills() {
     <span class="var-pill" onclick="insertVariable('{{First_Name}}')">+ First_Name</span>
     <span class="var-pill" onclick="insertVariable('{{Company}}')">+ Company</span>
     <span class="var-pill" onclick="insertVariable('{{Role}}')">+ Role</span>
+    <span class="var-pill" style="color:var(--accent-text); border-color:rgba(59,130,246,0.3)" onclick="insertVariable('{{Recruiter_Title}}')" title="Recipient's job title / role">+ Recruiter_Title</span>
+    <span class="var-pill" style="color:var(--accent-text); border-color:rgba(59,130,246,0.3)" onclick="insertVariable('{{Recruiter_Email}}')" title="Recipient's verified corporate email">+ Recruiter_Email</span>
+    <span class="var-pill" style="color:var(--emerald); border-color:rgba(16,185,129,0.4); font-weight:600" onclick="insertVariable('{{Tracking_Ref}}')" title="Unique tracking reference code (e.g. REF-STRIPE-1042) for keeping track of outreach">+ Tracking_Ref</span>
     <span class="var-pill" style="color:var(--emerald-text); border-color:rgba(16,185,129,0.3)" onclick="insertVariable('{{All_Links}}')" title="Inserts clean bulleted list of all active links">+ All_Links</span>
   `;
 
