@@ -2074,13 +2074,54 @@
 
 <!-- ================= MODAL: OUTREACH SEND ================= -->
 <div class="modal-backdrop" id="modal-outreach">
-  <div class="modal-card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+  <div class="modal-card" style="max-width:580px">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
       <div>
         <div style="font-size:16px; font-weight:700; color:var(--text-main)">Send Cold Email Outreach</div>
-        <div style="font-size:12px; color:var(--text-muted)" id="modal-outreach-recipient">Preparing dispatch...</div>
+        <div style="font-size:12px; color:var(--text-muted)" id="modal-outreach-recipient">Review recipients and preview personalized dispatch</div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="closeOutreachModal()">&times;</button>
+    </div>
+
+    <!-- TARGET RECIPIENT DISPLAY & SELECTOR BOX -->
+    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+        <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); display:flex; align-items:center; gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Target Recipient(s)
+        </span>
+        <span class="chip chip-blue" id="modal-recipient-count-chip">1 Recipient</span>
+      </div>
+
+      <!-- Active Recipient Card & Dropdown Switcher -->
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+        <div style="display:flex; align-items:center; gap:10px; min-width:240px">
+          <div class="avatar" id="modal-recipient-avatar" style="width:34px; height:34px; font-size:12px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; border-radius:50%">R</div>
+          <div>
+            <div style="display:flex; align-items:center; gap:6px">
+              <span style="font-weight:600; font-size:13px; color:var(--text-main)" id="modal-recipient-name">Recipient Name</span>
+              <span class="chip chip-gray" id="modal-recipient-company" style="font-size:10.5px">Company</span>
+            </div>
+            <div style="font-size:12px; color:var(--accent-text); display:flex; align-items:center; gap:5px; margin-top:2px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <span id="modal-recipient-email" style="font-family:monospace">email@company.com</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:6px">
+          <label style="font-size:11px; color:var(--text-muted); white-space:nowrap">Switch:</label>
+          <select class="form-select" id="modal-contact-picker" onchange="onModalContactPickerChanged(this.value)" style="font-size:12px; padding:4px 8px; width:auto; max-width:210px">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Multi-Recipient Pills (shown when 2+ leads are selected) -->
+      <div id="modal-bulk-pills-wrap" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-subtle)">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px">Click a recipient below to preview their personalized email:</div>
+        <div id="modal-recipient-pills" style="display:flex; flex-wrap:wrap; gap:6px; max-height:85px; overflow-y:auto"></div>
+      </div>
     </div>
 
     <div class="form-group">
@@ -3092,30 +3133,157 @@ async function deleteCurrentTemplate() {
 }
 
 // ================= OUTREACH MODALS & SEND =================
+function populateModalContactPicker(activeContact) {
+  const picker = document.getElementById('modal-contact-picker');
+  if (!picker) return;
+  picker.innerHTML = '';
+
+  const pool = (currentModalContactsList.length > 1) 
+    ? currentModalContactsList 
+    : (filteredContacts.length ? filteredContacts : allContacts);
+
+  pool.forEach((c, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    const emailStr = c['Work Email'] || c['Primary Email'] || c.email || 'No email';
+    opt.textContent = `${c.Name || 'Lead'} (${c.Company || 'Co'}) — ${emailStr}`;
+    if (activeContact && (c.Name === activeContact.Name && c.Company === activeContact.Company)) {
+      opt.selected = true;
+    }
+    picker.appendChild(opt);
+  });
+}
+
+function renderModalRecipientUI() {
+  if (!currentModalContact) return;
+  const c = currentModalContact;
+  const name = c.Name || 'Candidate / Recruiter';
+  const company = c.Company || '';
+  const email = c['Work Email'] || c['Primary Email'] || c.email || 'No email found';
+
+  // Avatar initials
+  const initials = name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'R';
+  const avatarEl = document.getElementById('modal-recipient-avatar');
+  if (avatarEl) avatarEl.textContent = initials;
+
+  // Name & Company
+  const nameEl = document.getElementById('modal-recipient-name');
+  if (nameEl) nameEl.textContent = name;
+  const compEl = document.getElementById('modal-recipient-company');
+  if (compEl) compEl.textContent = company || 'Unknown Co';
+
+  // Email
+  const emailEl = document.getElementById('modal-recipient-email');
+  if (emailEl) {
+    emailEl.textContent = email;
+    emailEl.style.color = (email && email.includes('@')) ? 'var(--accent-text)' : 'var(--danger)';
+  }
+
+  // Count chip & send button text
+  const totalCount = currentModalContactsList.length || 1;
+  const countChip = document.getElementById('modal-recipient-count-chip');
+  if (countChip) {
+    countChip.textContent = totalCount === 1 ? '1 Recipient' : `${totalCount} Recipients`;
+    countChip.className = totalCount === 1 ? 'chip chip-blue' : 'chip chip-green';
+  }
+
+  const sendBtn = document.getElementById('modal-send-btn');
+  if (sendBtn) {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg> Send Outreach to ${totalCount === 1 ? (name.split(' ')[0] || 'Lead') : totalCount + ' Selected Recipients'}`;
+  }
+
+  // Subtitle
+  const subEl = document.getElementById('modal-outreach-recipient');
+  if (subEl) {
+    subEl.textContent = totalCount === 1 
+      ? `Sending to: ${name} (${company}) • ${email}`
+      : `Bulk dispatching to ${totalCount} selected recruiter leads`;
+  }
+
+  // Bulk pills wrap
+  const pillsWrap = document.getElementById('modal-bulk-pills-wrap');
+  const pillsContainer = document.getElementById('modal-recipient-pills');
+  if (pillsWrap && pillsContainer) {
+    if (totalCount > 1) {
+      pillsWrap.style.display = 'block';
+      pillsContainer.innerHTML = '';
+      currentModalContactsList.forEach((item, i) => {
+        const pill = document.createElement('div');
+        const isActive = (item.Name === c.Name && item.Company === c.Company);
+        pill.style.cssText = `display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:12px; font-size:11px; cursor:pointer; transition:all 0.15s; background:${isActive ? 'var(--accent)' : 'var(--bg-subtle)'}; color:${isActive ? '#fff' : 'var(--text-muted)'}; border:1px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`;
+        pill.innerHTML = `<span>${item.Name || 'Lead'} (${item.Company || ''})</span><span style="opacity:0.6; cursor:pointer; font-weight:bold" onclick="event.stopPropagation(); removeRecipientFromModal(${i})">&times;</span>`;
+        pill.onclick = () => {
+          currentModalContact = item;
+          renderModalRecipientUI();
+          updateOutreachModalPreview();
+        };
+        pillsContainer.appendChild(pill);
+      });
+    } else {
+      pillsWrap.style.display = 'none';
+    }
+  }
+
+  populateModalContactPicker(currentModalContact);
+}
+
+function onModalContactPickerChanged(idx) {
+  const pool = (currentModalContactsList.length > 1) 
+    ? currentModalContactsList 
+    : (filteredContacts.length ? filteredContacts : allContacts);
+  const selected = pool[parseInt(idx, 10)];
+  if (selected) {
+    currentModalContact = selected;
+    if (currentModalContactsList.length <= 1) {
+      currentModalContactsList = [selected];
+    }
+    renderModalRecipientUI();
+    updateOutreachModalPreview();
+  }
+}
+
+function removeRecipientFromModal(idx) {
+  if (currentModalContactsList.length <= 1) {
+    toast('Cannot remove only remaining recipient', 'warning');
+    return;
+  }
+  currentModalContactsList.splice(idx, 1);
+  currentModalContact = currentModalContactsList[0];
+  renderModalRecipientUI();
+  updateOutreachModalPreview();
+}
+
 function openOutreachModalForSingle(idx) {
-  const contact = filteredContacts[idx];
-  if (!contact) return;
+  const contact = filteredContacts[idx] || allContacts[idx];
+  if (!contact) return toast('Recipient record not found', 'error');
+
   currentModalContact = contact;
   currentModalContactsList = [contact];
 
-  document.getElementById('modal-outreach-recipient').textContent =
-    `Sending to: ${contact.Name || 'Contact'} (${contact.Company || ''}) &bull; ${contact['Work Email'] || contact['Primary Email'] || 'No email'}`;
-
   document.getElementById('modal-outreach').classList.add('active');
+  renderModalRecipientUI();
   updateOutreachModalPreview();
 }
 
 function openOutreachModalForSelected() {
-  const list = Array.from(selectedContacts).map(idx => filteredContacts[idx]).filter(Boolean);
-  if (!list.length) return toast('No contacts selected', 'error');
+  let list = Array.from(selectedContacts).map(idx => filteredContacts[idx] || allContacts[idx]).filter(Boolean);
+  
+  // If no contact was checked, automatically default to the first available contact or entire list
+  if (!list.length) {
+    const fallbackList = filteredContacts.length ? filteredContacts : allContacts;
+    if (!fallbackList.length) {
+      toast('No discovered leads available yet. Run a search or pipeline first!', 'error');
+      return;
+    }
+    list = [fallbackList[0]];
+  }
 
   currentModalContact = list[0];
   currentModalContactsList = list;
 
-  document.getElementById('modal-outreach-recipient').textContent =
-    `Bulk dispatch to ${list.length} selected recruiter lead${list.length === 1 ? '' : 's'}`;
-
   document.getElementById('modal-outreach').classList.add('active');
+  renderModalRecipientUI();
   updateOutreachModalPreview();
 }
 
